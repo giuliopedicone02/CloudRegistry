@@ -3,7 +3,7 @@ name: Deploy CloudRegistry
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Permette di lanciare il deploy manualmente
+  workflow_dispatch:
 
 jobs:
   terraform:
@@ -23,19 +23,15 @@ jobs:
         terraform_version: 1.5.0
 
     - name: Terraform Init
-      # Passiamo le credenziali come variabili d'ambiente
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         AWS_REGION: 'us-east-1'
       run: terraform init
 
     - name: Terraform Apply
-      # Anche qui servono le credenziali
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         AWS_REGION: 'us-east-1'
       run: terraform apply -auto-approve
