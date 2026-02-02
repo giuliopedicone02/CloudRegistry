@@ -2,10 +2,14 @@ provider "aws" {
   region = "us-east-1" # Cambia se usi una regione diversa (es. eu-south-1 per Milano)
 }
 
-# --- 1. DYNAMODB (Database) ---
+# --- DYNAMODB ---
 resource "aws_dynamodb_table" "registry_table" {
   name           = "CloudRegistryData"
-  billing_mode   = "PAY_PER_REQUEST"
+  # billing_mode   = "PAY_PER_REQUEST"  <-- RIMUOVI QUESTA RIGA
+  billing_mode   = "PROVISIONED"      # <-- AGGIUNGI QUESTA
+  read_capacity  = 5                  # <-- Entro i limiti Free Tier (max 25)
+  write_capacity = 5                  # <-- Entro i limiti Free Tier (max 25)
+  
   hash_key       = "PK"
   range_key      = "SK"
 
@@ -145,4 +149,10 @@ output "cognito_user_pool_id" {
 
 output "cognito_client_id" {
   value = aws_cognito_user_pool_client.client.id
+}
+
+# --- AGGIUNTA PER RISPARMIARE SUI LOG ---
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name              = "/aws/lambda/${aws_lambda_function.grade_handler.function_name}"
+  retention_in_days = 7  # Cancella i log vecchi dopo una settimana
 }
