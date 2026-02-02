@@ -9,7 +9,6 @@ resource "aws_dynamodb_table" "db" {
   hash_key     = "PK"
   range_key    = "SK"
 
-  # CORREZIONE: Parametri su righe separate
   attribute {
     name = "PK"
     type = "S"
@@ -21,28 +20,37 @@ resource "aws_dynamodb_table" "db" {
   }
 }
 
-# 2. COGNITO
+# 2. COGNITO (CORRETTO SENZA SEMICOLONS)
 resource "aws_cognito_user_pool" "pool" {
   name = "RegistryPool"
 
-  # Abilitiamo l'auto-iscrizione (Registrazione)
+  # Abilitiamo l'auto-iscrizione
   admin_create_user_config {
     allow_admin_create_user_only = false
   }
 
-  # Definiamo gli attributi extra
+  # Attributo Ruolo (Teacher/Student)
   schema {
     attribute_data_type = "String"
-    name                = "role"     # Teacher o Student
+    name                = "role"
     mutable             = true
-    string_attribute_constraints { min_length = 1; max_length = 20; }
+    
+    string_attribute_constraints {
+      min_length = 1
+      max_length = 20
+    }
   }
 
+  # Attributo Classe (es. 5A)
   schema {
     attribute_data_type = "String"
-    name                = "classe"   # es. 5A
+    name                = "classe"
     mutable             = true
-    string_attribute_constraints { min_length = 1; max_length = 10; }
+    
+    string_attribute_constraints {
+      min_length = 1
+      max_length = 10
+    }
   }
 }
 
@@ -58,7 +66,7 @@ resource "aws_sns_topic" "topic" {
 
 # 4. IAM ROLE
 resource "aws_iam_role" "iam_for_lambda" {
-  name = "iam_for_lambda_registry_v2"
+  name = "iam_for_lambda_registry_v3" # Cambiato nome per forzare aggiornamento pulito
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -80,7 +88,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Scan"]
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"]
         Effect   = "Allow"
         Resource = "*"
       },
@@ -115,7 +123,7 @@ resource "aws_lambda_function" "backend" {
   }
 }
 
-# 6. API GATEWAY (CON CORS FIXATO)
+# 6. API GATEWAY
 resource "aws_apigatewayv2_api" "api" {
   name          = "RegistryAPI"
   protocol_type = "HTTP"
@@ -123,7 +131,7 @@ resource "aws_apigatewayv2_api" "api" {
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["POST", "GET", "OPTIONS"]
-    allow_headers = ["content-type", "authorization", "x-amz-date", "x-api-key", "x-amz-security-token"]
+    allow_headers = ["content-type", "authorization"]
     max_age       = 300
   }
 }
@@ -146,6 +154,13 @@ resource "aws_apigatewayv2_route" "route" {
   target    = "integrations/${aws_apigatewayv2_integration.integ.id}"
 }
 
+# Rotta GET per leggere i voti
+resource "aws_apigatewayv2_route" "route_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /voto"
+  target    = "integrations/${aws_apigatewayv2_integration.integ.id}"
+}
+
 resource "aws_lambda_permission" "api_perm" {
   statement_id  = "AllowAPI"
   action        = "lambda:InvokeFunction"
@@ -164,5 +179,5 @@ output "cognito_client_id" {
 }
 
 output "url_da_copiare" {
-  value = "${aws_apigatewayv2_stage.stage.invoke_url}/voto"
+  value = aws_apigatewayv2_stage.stage.invoke_url
 }
