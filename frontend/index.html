@@ -235,31 +235,52 @@
             } catch (e) { alert("Errore: " + e); }
         }
 
-        // --- FUNZIONI STUDENTE ---
         async function setupStudent(email) {
             document.getElementById('student-name').innerText = email;
             switchView('view-student');
 
-            // Scarica i voti
-            const res = await fetch(apiBaseUrl + "/voto?email=" + email);
-            const data = await res.json();
+            try {
+                // Scarica i voti
+                const res = await fetch(apiBaseUrl + "/voto?email=" + email);
+                const data = await res.json();
 
-            // Mostra Medie
-            const divMedie = document.getElementById('lista-medie');
-            divMedie.innerHTML = "";
-            for (const [materia, media] of Object.entries(data.medie)) {
-                divMedie.innerHTML += `<p><b>${materia}</b>: <span class="media-badge">${media}</span></p>`;
+                // CONTROLLO ERRORI: Se il server risponde con errore, mostriamolo
+                if (!res.ok) {
+                    alert("ERRORE DAL SERVER:\n" + JSON.stringify(data, null, 2));
+                    console.error("Dettagli errore backend:", data);
+                    return;
+                }
+
+                // Mostra Medie
+                const divMedie = document.getElementById('lista-medie');
+                divMedie.innerHTML = "";
+                // Controllo se ci sono medie (potrebbe essere vuoto se non ci sono voti)
+                if (data.medie) {
+                    for (const [materia, media] of Object.entries(data.medie)) {
+                        divMedie.innerHTML += `<p><b>${materia}</b>: <span class="media-badge">${media}</span></p>`;
+                    }
+                } else {
+                    divMedie.innerHTML = "<p>Nessun voto presente.</p>";
+                }
+
+                // Mostra Lista Voti
+                const divVoti = document.getElementById('lista-voti');
+                divVoti.innerHTML = "";
+                if (data.voti && data.voti.length > 0) {
+                    data.voti.forEach(v => {
+                        divVoti.innerHTML += `<div class="voto-card">
+                            <strong>${v.materia}</strong>: ${v.voto} <br> 
+                            <small>Prof: ${v.teacher} - Data: ${v.data.substring(0, 10)}</small>
+                        </div>`;
+                    });
+                } else {
+                    divVoti.innerHTML = "<p>Non hai ancora ricevuto voti.</p>";
+                }
+
+            } catch (err) {
+                alert("Errore di connessione o Javascript: " + err);
+                console.error(err);
             }
-
-            // Mostra Lista Voti
-            const divVoti = document.getElementById('lista-voti');
-            divVoti.innerHTML = "";
-            data.voti.forEach(v => {
-                divVoti.innerHTML += `<div class="voto-card">
-                    <strong>${v.materia}</strong>: ${v.voto} <br> 
-                    <small>Prof: ${v.teacher} - Data: ${v.data.substring(0, 10)}</small>
-                </div>`;
-            });
         }
 
         function logout() {

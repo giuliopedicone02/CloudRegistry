@@ -2,6 +2,7 @@ import json
 import boto3
 import os
 import datetime
+import traceback # <--- Aggiunto per tracciare l'errore esatto
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource('dynamodb')
@@ -13,7 +14,6 @@ SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 def lambda_handler(event, context):
     print("Evento:", event)
     
-    # Gestione CORS per il browser
     headers = {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
@@ -21,72 +21,90 @@ def lambda_handler(event, context):
     }
 
     try:
-        # Se è una chiamata GET (Lettura voti)
-        if event['requestContext']['http']['method'] == 'GET':
+        # Gestione robusta per i parametri mancanti
+        http_method = event.get('requestContext', {}).get('http', {}).get('method')
+        
+        if http_method == 'GET':
             return gestisci_lettura(event, headers)
 
-        # Se è una chiamata POST (Scrittura voto)
-        if event['requestContext']['http']['method'] == 'POST':
+        if http_method == 'POST':
             return gestisci_scrittura(event, headers)
+            
+        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Metodo non supportato")}
 
     except Exception as e:
-        print(f"Errore: {str(e)}")
-        return {'statusCode': 500, 'headers': headers, 'body': json.dumps(f"Errore: {str(e)}")}
+        # DEBUG MODE: Restituiamo l'errore completo al frontend invece di crashare
+        error_message = traceback.format_exc()
+        print(f"CRASH LAMBDA: {error_message}")
+        return {
+            'statusCode': 500, 
+            'headers': headers, 
+            'body': json.dumps({
+                "error": "Errore interno del server",
+                "details": str(e),
+                "trace": error_message
+            })
+        }
 
 def gestisci_scrittura(event, headers):
+    if not event.get('body'):
+        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Body mancante")}
+        
     body = json.loads(event['body'])
     action = body.get('action')
 
-    # Aggiungi Voto
     if action == 'add_grade':
-        student_email = body['student_email']
-        materia = body['materia']
-        voto = float(body['voto'])
+        student_email = body.get('student_email')
+        materia = body.get('materia')
+        voto_raw = body.get('voto')
         teacher = body.get('teacher_email', 'Prof')
+
+        if not student_email or not materia or not voto_raw:
+             return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Dati incompleti")}
 
         table = dynamodb.Table(TABLE_NAME)
         timestamp = datetime.datetime.now().isoformat()
         
-        # Salviamo su DynamoDB
-        # PK = EMAIL_STUDENTE (così possiamo trovare tutti i voti di uno studente)
         item = {
             'PK': f"STUDENT#{student_email}",
             'SK': f"VOTO#{timestamp}",
             'materia': materia,
-            'voto': str(voto),
+            'voto': str(voto_raw),
             'data': timestamp,
             'teacher': teacher
         }
         table.put_item(Item=item)
 
-        # Notifica SNS
-        msg = f"Nuovo voto per {student_email}: {voto} in {materia}"
-        sns.publish(TopicArn=SNS_TOPIC_ARN, Message=msg, Subject="Nuovo Voto")
+        # Notifica SNS (Avvolta in try per evitare blocchi se SNS fallisce)
+        try:
+            msg = f"Nuovo voto per {student_email}: {voto_raw} in {materia}"
+            sns.publish(TopicArn=SNS_TOPIC_ARN, Message=msg, Subject="Nuovo Voto")
+        except Exception as sns_error:
+            print(f"Errore SNS: {sns_error}")
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
 def gestisci_lettura(event, headers):
-    # Recuperiamo l'email dalla query string ?email=...
-    params = event.get('queryStringParameters', {})
+    # Gestione sicura dei parametri
+    params = event.get('queryStringParameters') or {}
     student_email = params.get('email')
 
     if not student_email:
-        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Manca l'email")}
+        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Manca l'email nella richiesta")}
 
     table = dynamodb.Table(TABLE_NAME)
     
-    # Cerchiamo tutti i record che iniziano con PK = STUDENT#email
+    # QUI E' DOVE PROBABILMENTE FALLISCE SE MANCANO PERMESSI
     response = table.query(
         KeyConditionExpression=Key('PK').eq(f"STUDENT#{student_email}")
     )
     
     items = response.get('Items', [])
     
-    # Calcolo Medie
     voti_per_materia = {}
     for item in items:
-        mat = item['materia']
-        val = float(item['voto'])
+        mat = item.get('materia', 'Sconosciuta')
+        val = float(item.get('voto', 0))
         if mat not in voti_per_materia:
             voti_per_materia[mat] = []
         voti_per_materia[mat].append(val)
