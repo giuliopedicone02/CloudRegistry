@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CloudRegistry - Docente</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #status {
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Registro Elettronico (Lato Docente)</h2>
+    <div class="form-group">
+        <label>ID Studente (es. Rossi_Mario)</label>
+        <input type="text" id="student_id">
+    </div>
+    <div class="form-group">
+        <label>Materia</label>
+        <input type="text" id="subject" value="Matematica">
+    </div>
+    <div class="form-group">
+        <label>Tipo Inserimento</label>
+        <select id="type">
+            <option value="VOTO">Voto</option>
+            <option value="NOTA">Nota Disciplinare</option>
+            <option value="ASSENZA">Assenza</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Valore (Voto o testo nota)</label>
+        <input type="text" id="grade">
+    </div>
+    <button onclick="inviaDati()">Invia al Cloud</button>
+    <div id="status"></div>
+
+    <script>
+        // SOSTITUISCI CON IL TUO URL DI TERRAFORM (Mantieni /grades alla fine)
+        const API_URL = "https://1u1cjfct5h.execute-api.us-east-1.amazonaws.com/grades";
+
+        async function inviaDati() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = "Invio in corso...";
+            statusDiv.style.color = "black";
+
+            const payload = {
+                student_id: document.getElementById('student_id').value,
+                subject: document.getElementById('subject').value,
+                type: document.getElementById('type').value,
+                grade: document.getElementById('grade').value
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusDiv.textContent = "Successo: " + result.message;
+                    statusDiv.style.color = "green";
+                } else {
+                    statusDiv.textContent = "Errore: " + JSON.stringify(result);
+                    statusDiv.style.color = "red";
+                }
+            } catch (error) {
+                statusDiv.textContent = "Errore di rete: " + error.message;
+                statusDiv.style.color = "red";
+            }
+        }
+    </script>
+</body>
+
+</html>

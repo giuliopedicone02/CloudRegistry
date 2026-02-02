@@ -1,0 +1,20 @@
+# --- Ignora file di sistema e IDE ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Ignora file generati da Python ---
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# --- Ignora file di Terraform (IMPORTANTE) ---
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.tfvars
+
+# --- Ignora file ZIP generati ---
+*.zip
