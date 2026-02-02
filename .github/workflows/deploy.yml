@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -18,5 +19,9 @@ jobs:
 
       - name: Zip and Deploy Lambda
         run: |
-          zip function.zip lambda_function.py
-          aws lambda update-function-code --function-name MyRegisterFunction --zip-file fileb://function.zip
+          # Entriamo nella cartella dove risiede il codice
+          cd lambda
+          zip ../function.zip lambda_function.py
+          cd ..
+          # Aggiorna il codice della funzione (Assicurati che il nome coincida con Terraform)
+          aws lambda update-function-code --function-name CloudRegistry_Logic --zip-file fileb://function.zip
