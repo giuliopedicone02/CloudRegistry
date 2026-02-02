@@ -53,7 +53,7 @@ def lambda_handler(event, context):
         return {
             'statusCode': 200,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'message': 'Voto salvato e notifica inviata!', 'id': student_id})
+            'body': json.dumps({'message': 'Voto salvato e notifica inviata via email!', 'id': student_id})
         }
 
     except Exception as e:
