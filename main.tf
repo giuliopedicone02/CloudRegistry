@@ -20,33 +20,28 @@ resource "aws_dynamodb_table" "db" {
   }
 }
 
-# 2. COGNITO (CORRETTO SENZA SEMICOLONS)
+# 2. COGNITO
 resource "aws_cognito_user_pool" "pool" {
   name = "RegistryPool"
 
-  # Abilitiamo l'auto-iscrizione
   admin_create_user_config {
     allow_admin_create_user_only = false
   }
 
-  # Attributo Ruolo (Teacher/Student)
   schema {
     attribute_data_type = "String"
     name                = "role"
     mutable             = true
-    
     string_attribute_constraints {
       min_length = 1
       max_length = 20
     }
   }
 
-  # Attributo Classe (es. 5A)
   schema {
     attribute_data_type = "String"
     name                = "classe"
     mutable             = true
-    
     string_attribute_constraints {
       min_length = 1
       max_length = 10
@@ -64,9 +59,9 @@ resource "aws_sns_topic" "topic" {
   name = "RegistryNotifications"
 }
 
-# 4. IAM ROLE
+# 4. IAM ROLE (CAMBIATO NOME in V4 PER RISOLVERE CONFLITTO)
 resource "aws_iam_role" "iam_for_lambda" {
-  name = "iam_for_lambda_registry_v3" # Cambiato nome per forzare aggiornamento pulito
+  name = "iam_for_lambda_registry_v4" 
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -81,7 +76,7 @@ resource "aws_iam_role" "iam_for_lambda" {
 }
 
 resource "aws_iam_role_policy" "lambda_policy" {
-  name = "lambda_policy"
+  name = "lambda_policy_v4"
   role = aws_iam_role.iam_for_lambda.id
   
   policy = jsonencode({
@@ -123,9 +118,9 @@ resource "aws_lambda_function" "backend" {
   }
 }
 
-# 6. API GATEWAY
+# 6. API GATEWAY (CAMBIATO NOME PER RISOLVERE CONFLITTO ROTTE)
 resource "aws_apigatewayv2_api" "api" {
-  name          = "RegistryAPI"
+  name          = "RegistryAPI_v2"
   protocol_type = "HTTP"
 
   cors_configuration {
@@ -154,7 +149,6 @@ resource "aws_apigatewayv2_route" "route" {
   target    = "integrations/${aws_apigatewayv2_integration.integ.id}"
 }
 
-# Rotta GET per leggere i voti
 resource "aws_apigatewayv2_route" "route_get" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /voto"
@@ -162,7 +156,7 @@ resource "aws_apigatewayv2_route" "route_get" {
 }
 
 resource "aws_lambda_permission" "api_perm" {
-  statement_id  = "AllowAPI"
+  statement_id  = "AllowAPI_v2" # Cambiato ID
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.backend.function_name
   principal     = "apigateway.amazonaws.com"
