@@ -1,15 +1,13 @@
 provider "aws" {
-  region = "us-east-1" # Cambia se usi una regione diversa (es. eu-south-1 per Milano)
+  region = "us-east-1"
 }
 
-# --- DYNAMODB ---
+# --- 1. DYNAMODB (Database - Configurazione Free Tier Sicura) ---
 resource "aws_dynamodb_table" "registry_table" {
   name           = "CloudRegistryData"
-  # billing_mode   = "PAY_PER_REQUEST"  <-- RIMUOVI QUESTA RIGA
-  billing_mode   = "PROVISIONED"      # <-- AGGIUNGI QUESTA
-  read_capacity  = 5                  # <-- Entro i limiti Free Tier (max 25)
-  write_capacity = 5                  # <-- Entro i limiti Free Tier (max 25)
-  
+  billing_mode   = "PROVISIONED" # Impostato su Provisioned per sicurezza Free Tier
+  read_capacity  = 5             # Max 25 unità gratis
+  write_capacity = 5             # Max 25 unità gratis
   hash_key       = "PK"
   range_key      = "SK"
 
@@ -63,6 +61,12 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
+# Gruppo di Log CloudWatch (Per risparmiare costi, cancella log dopo 7 giorni)
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name              = "/aws/lambda/CloudRegistry_AddGrade"
+  retention_in_days = 7
+}
+
 # Permessi per la Lambda (Logs, DynamoDB, SNS)
 resource "aws_iam_policy" "lambda_policy" {
   name = "cloudregistry_lambda_policy"
@@ -81,6 +85,7 @@ resource "aws_iam_role_policy_attachment" "attach_policy" {
   policy_arn = aws_iam_policy.lambda_policy.arn
 }
 
+# Funzione Lambda con DEPENDS_ON per evitare il blocco
 resource "aws_lambda_function" "grade_handler" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "CloudRegistry_AddGrade"
@@ -96,6 +101,12 @@ resource "aws_lambda_function" "grade_handler" {
       SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
     }
   }
+
+  # FONDAMENTALE: Aspetta che ruolo e log group siano pronti prima di creare la funzione
+  depends_on = [
+    aws_iam_role_policy_attachment.attach_policy,
+    aws_cloudwatch_log_group.lambda_log_group
+  ]
 }
 
 # --- 5. API GATEWAY (Punto di accesso Web) ---
@@ -149,10 +160,4 @@ output "cognito_user_pool_id" {
 
 output "cognito_client_id" {
   value = aws_cognito_user_pool_client.client.id
-}
-
-# --- AGGIUNTA PER RISPARMIARE SUI LOG ---
-resource "aws_cloudwatch_log_group" "lambda_log_group" {
-  name              = "/aws/lambda/${aws_lambda_function.grade_handler.function_name}"
-  retention_in_days = 7  # Cancella i log vecchi dopo una settimana
 }
