@@ -2,7 +2,7 @@ import json
 import boto3
 import os
 import datetime
-import traceback # <--- Aggiunto per tracciare l'errore esatto
+import traceback
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource('dynamodb')
@@ -12,7 +12,7 @@ TABLE_NAME = os.environ.get('TABLE_NAME')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 
 def lambda_handler(event, context):
-    print("Evento:", event)
+    print("Evento ricevuto:", json.dumps(event)) # Log completo per debug
     
     headers = {
         'Content-Type': 'application/json',
@@ -21,19 +21,32 @@ def lambda_handler(event, context):
     }
 
     try:
-        # Gestione robusta per i parametri mancanti
-        http_method = event.get('requestContext', {}).get('http', {}).get('method')
+        # --- FIX ROBUSTEZZA: Supportiamo sia API Gateway v1 che v2 ---
+        http_method = None
         
+        # Tentativo 1: Formato v2 (requestContext -> http -> method)
+        if 'requestContext' in event and 'http' in event['requestContext']:
+            http_method = event['requestContext']['http'].get('method')
+        
+        # Tentativo 2: Formato v1 (httpMethod diretto nella root)
+        if not http_method:
+            http_method = event.get('httpMethod')
+            
+        # Tentativo 3: Formato v1 alternativo (requestContext -> httpMethod)
+        if not http_method and 'requestContext' in event:
+            http_method = event['requestContext'].get('httpMethod')
+
+        print(f"Metodo rilevato: {http_method}")
+
         if http_method == 'GET':
             return gestisci_lettura(event, headers)
 
         if http_method == 'POST':
             return gestisci_scrittura(event, headers)
             
-        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Metodo non supportato")}
+        return {'statusCode': 400, 'headers': headers, 'body': json.dumps(f"Metodo non supportato o non trovato. Evento: {str(event)}")}
 
     except Exception as e:
-        # DEBUG MODE: Restituiamo l'errore completo al frontend invece di crashare
         error_message = traceback.format_exc()
         print(f"CRASH LAMBDA: {error_message}")
         return {
@@ -41,16 +54,20 @@ def lambda_handler(event, context):
             'headers': headers, 
             'body': json.dumps({
                 "error": "Errore interno del server",
-                "details": str(e),
+                "message": str(e),
                 "trace": error_message
             })
         }
 
 def gestisci_scrittura(event, headers):
-    if not event.get('body'):
-        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Body mancante")}
-        
-    body = json.loads(event['body'])
+    # Gestione Body anche se arriva come stringa JSON
+    body = event.get('body')
+    if isinstance(body, str):
+        body = json.loads(body)
+    
+    if not body:
+         return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Body mancante")}
+
     action = body.get('action')
 
     if action == 'add_grade':
@@ -75,7 +92,6 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
-        # Notifica SNS (Avvolta in try per evitare blocchi se SNS fallisce)
         try:
             msg = f"Nuovo voto per {student_email}: {voto_raw} in {materia}"
             sns.publish(TopicArn=SNS_TOPIC_ARN, Message=msg, Subject="Nuovo Voto")
@@ -85,7 +101,7 @@ def gestisci_scrittura(event, headers):
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
 def gestisci_lettura(event, headers):
-    # Gestione sicura dei parametri
+    # Gestione Parametri query string (v1 e v2)
     params = event.get('queryStringParameters') or {}
     student_email = params.get('email')
 
@@ -94,7 +110,6 @@ def gestisci_lettura(event, headers):
 
     table = dynamodb.Table(TABLE_NAME)
     
-    # QUI E' DOVE PROBABILMENTE FALLISCE SE MANCANO PERMESSI
     response = table.query(
         KeyConditionExpression=Key('PK').eq(f"STUDENT#{student_email}")
     )
