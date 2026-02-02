@@ -59,9 +59,9 @@ resource "aws_sns_topic" "topic" {
   name = "RegistryNotifications"
 }
 
-# 4. IAM ROLE (CAMBIATO NOME in V4 PER RISOLVERE CONFLITTO)
+# 4. IAM ROLE (CAMBIATO IN V5 - NUOVO NOME)
 resource "aws_iam_role" "iam_for_lambda" {
-  name = "iam_for_lambda_registry_v4" 
+  name = "iam_for_lambda_registry_v5" 
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -76,7 +76,7 @@ resource "aws_iam_role" "iam_for_lambda" {
 }
 
 resource "aws_iam_role_policy" "lambda_policy" {
-  name = "lambda_policy_v4"
+  name = "lambda_policy_v5"
   role = aws_iam_role.iam_for_lambda.id
   
   policy = jsonencode({
@@ -118,9 +118,9 @@ resource "aws_lambda_function" "backend" {
   }
 }
 
-# 6. API GATEWAY (CAMBIATO NOME PER RISOLVERE CONFLITTO ROTTE)
+# 6. API GATEWAY (CAMBIATO IN API_v3 - NUOVO NOME)
 resource "aws_apigatewayv2_api" "api" {
-  name          = "RegistryAPI_v2"
+  name          = "RegistryAPI_v3"
   protocol_type = "HTTP"
 
   cors_configuration {
@@ -156,7 +156,7 @@ resource "aws_apigatewayv2_route" "route_get" {
 }
 
 resource "aws_lambda_permission" "api_perm" {
-  statement_id  = "AllowAPI_v2" # Cambiato ID
+  statement_id  = "AllowAPI_v5" # ID UNIVOCO
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.backend.function_name
   principal     = "apigateway.amazonaws.com"
