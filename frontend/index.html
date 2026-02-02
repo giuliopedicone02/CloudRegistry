@@ -3,104 +3,114 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>CloudRegistry - Login</title>
-
+    <title>CloudRegistry Pro</title>
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
     <script src="https://unpkg.com/amazon-cognito-identity-js@5.2.9/dist/amazon-cognito-identity.min.js"></script>
-
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 600px;
+            font-family: sans-serif;
+            max-width: 800px;
             margin: 2rem auto;
             padding: 1rem;
-            background-color: #f4f4f4;
+            background: #f0f2f5;
         }
 
         .box {
             background: white;
-            border: 1px solid #ddd;
             padding: 2rem;
-            margin-bottom: 1rem;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
         }
 
-        h1 {
-            text-align: center;
-            color: #333;
+        .visible {
+            display: block;
         }
 
         input,
+        select,
         button {
-            display: block;
             width: 100%;
-            margin: 0.8rem 0;
-            padding: 0.8rem;
+            margin: 10px 0;
+            padding: 10px;
             box-sizing: border-box;
-            border-radius: 4px;
-            border: 1px solid #ccc;
         }
 
         button {
             background: #0073bb;
             color: white;
             border: none;
-            cursor: pointer;
             font-weight: bold;
+            cursor: pointer;
         }
 
-        button:hover {
-            background: #005b96;
+        button.secondary {
+            background: #666;
         }
 
-        #dashboard {
-            display: none;
+        .voto-card {
+            border-left: 5px solid #0073bb;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
         }
 
-        .error {
-            color: red;
-            font-size: 0.9rem;
-        }
-
-        .success {
-            color: green;
-            font-size: 0.9rem;
+        .media-badge {
+            float: right;
+            background: #0073bb;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>Registro Elettronico Cloud</h1>
+    <h1 style="text-align:center">Registro Elettronico Cloud</h1>
 
-    <div id="login-section" class="box">
+    <div id="view-login" class="box visible">
         <h2>Accedi</h2>
-        <input type="text" id="username" placeholder="Username (es. prof_rossi)">
-        <input type="password" id="password" placeholder="Password">
+        <input type="text" id="login-user" placeholder="Email o Username">
+        <input type="password" id="login-pass" placeholder="Password">
         <button onclick="login()">Login</button>
-        <p id="login-msg" class="error"></p>
+        <button class="secondary" onclick="switchView('view-register')">Non hai un account? Registrati</button>
     </div>
 
-    <div id="dashboard" class="box">
-        <h2 id="welcome-msg">Benvenuto</h2>
-        <p>Sei autenticato nel sistema.</p>
-        <hr>
+    <div id="view-register" class="box">
+        <h2>Registrazione Nuovo Utente</h2>
+        <input type="text" id="reg-email" placeholder="Email (sarà il tuo username)">
+        <input type="password" id="reg-pass" placeholder="Password (es. Password123!)">
+        <select id="reg-role">
+            <option value="Student">Studente</option>
+            <option value="Teacher">Docente</option>
+        </select>
+        <input type="text" id="reg-class" placeholder="Classe (es. 5A)">
+        <button onclick="register()">Registrati</button>
+        <button class="secondary" onclick="switchView('view-login')">Torna al Login</button>
+    </div>
 
+    <div id="view-teacher" class="box">
+        <h2>Area Docente <span id="teacher-name"></span></h2>
         <h3>Inserisci Voto</h3>
-        <input type="text" id="student_id" placeholder="Nome Studente (es. Mario)">
+        <input type="email" id="target-student" placeholder="Email Studente">
         <input type="text" id="materia" placeholder="Materia (es. Storia)">
         <input type="number" id="voto" placeholder="Voto (es. 8)">
-        <button onclick="inviaVoto()">Invia Voto</button>
-        <p id="api-msg"></p>
+        <button onclick="inviaVoto()">Assegna Voto</button>
+        <p id="msg-teacher"></p>
+        <button class="secondary" onclick="logout()">Logout</button>
+    </div>
 
-        <button onclick="logout()" style="background:#cc0000; margin-top:20px;">Logout</button>
+    <div id="view-student" class="box">
+        <h2>Pagella di <span id="student-name"></span></h2>
+        <div id="lista-medie"></div>
+        <hr>
+        <h3>Ultimi Voti</h3>
+        <div id="lista-voti"></div>
+        <button class="secondary" onclick="logout()">Logout</button>
     </div>
 
     <script>
-        // --- 2. INCOLLA I TUOI DATI QUI SOTTO ---
-
-        // --- CONFIGURAZIONE ---
         const poolData = {
             UserPoolId: 'eu-central-1_JJ7KlMNcu',       // Il tuo Pool ID
             ClientId: '4vq33ie3iig4918jchrhhfhcql'    // Il tuo Client ID
@@ -110,106 +120,113 @@
         const apiBaseUrl = 'https://16zqbpqdvh.execute-api.eu-central-1.amazonaws.com';
         // ------------------------------------------------
 
-        var userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
-        var currentUser;
+        const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+        let currentUser;
 
-        function login() {
-            var userVal = document.getElementById("username").value;
-            var passVal = document.getElementById("password").value;
+        function switchView(viewId) {
+            document.querySelectorAll('.box').forEach(el => el.classList.remove('visible'));
+            document.getElementById(viewId).classList.add('visible');
+        }
 
-            if (!userVal || !passVal) {
-                document.getElementById("login-msg").innerText = "Inserisci user e password";
-                return;
-            }
+        // --- REGISTRAZIONE ---
+        function register() {
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            const role = document.getElementById('reg-role').value;
+            const classe = document.getElementById('reg-class').value;
 
-            var authenticationData = { Username: userVal, Password: passVal };
-            var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+            const attributeList = [
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email }),
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:role", Value: role }),
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:classe", Value: classe })
+            ];
 
-            var userData = { Username: userVal, Pool: userPool };
-            var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
-
-            document.getElementById("login-msg").innerText = "Login in corso...";
-
-            cognitoUser.authenticateUser(authenticationDetails, {
-                onSuccess: function (result) {
-                    console.log("Login riuscito!");
-                    currentUser = result;
-                    mostraDashboard();
-                },
-                onFailure: function (err) {
-                    console.error(err);
-                    document.getElementById("login-msg").innerText = "Errore: " + (err.message || JSON.stringify(err));
-                },
-                newPasswordRequired: function (userAttributes, requiredAttributes) {
-                    // Gestisce il cambio password obbligatorio al primo accesso
-                    var newPw = prompt("È il primo accesso. Imposta una nuova password:");
-                    if (newPw) {
-                        cognitoUser.completeNewPasswordChallenge(newPw, {}, {
-                            onSuccess: function (result) { login(); },
-                            onFailure: function (err) { document.getElementById("login-msg").innerText = "Errore cambio pass: " + err.message; }
-                        });
-                    } else {
-                        document.getElementById("login-msg").innerText = "Cambio password annullato.";
-                    }
-                }
+            userPool.signUp(email, pass, attributeList, null, (err, result) => {
+                if (err) { alert(err.message || JSON.stringify(err)); return; }
+                alert('Registrazione completata! Controlla la tua email per confermare.');
+                switchView('view-login');
             });
         }
 
-        function mostraDashboard() {
-            document.getElementById("login-section").style.display = "none";
-            document.getElementById("dashboard").style.display = "block";
-            document.getElementById("welcome-msg").innerText = "Benvenuto " + document.getElementById("username").value;
+        // --- LOGIN ---
+        function login() {
+            const email = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
+            const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass });
+
+            cognitoUser.authenticateUser(authDetails, {
+                onSuccess: (result) => {
+                    currentUser = result;
+                    // Recuperiamo gli attributi (Ruolo, Classe)
+                    currentUser.getUserAttributes((err, attrs) => {
+                        if (err) return;
+                        const roleObj = attrs.find(a => a.getName() === 'custom:role');
+                        const role = roleObj ? roleObj.getValue() : 'Student';
+
+                        if (role === 'Teacher') setupTeacher(email);
+                        else setupStudent(email);
+                    });
+                },
+                onFailure: (err) => alert("Login fallito: " + err.message)
+            });
+        }
+
+        // --- FUNZIONI DOCENTE ---
+        function setupTeacher(email) {
+            document.getElementById('teacher-name').innerText = email;
+            switchView('view-teacher');
         }
 
         async function inviaVoto() {
-            if (!currentUser) { alert("Sessione scaduta, rifai login"); return; }
-
-            // Recupera il token JWT per sicurezza (opzionale, ma buona pratica)
-            // const token = currentUser.getIdToken().getJwtToken();
-
             const data = {
-                student_id: document.getElementById("student_id").value,
-                materia: document.getElementById("materia").value,
-                voto: document.getElementById("voto").value
+                action: 'add_grade',
+                teacher_email: currentUser.getUsername(),
+                student_email: document.getElementById('target-student').value,
+                materia: document.getElementById('materia').value,
+                voto: document.getElementById('voto').value
             };
 
-            document.getElementById("api-msg").className = "";
-            document.getElementById("api-msg").innerText = "Invio in corso...";
-
             try {
-                // CORREZIONE URL: Aggiungiamo qui /voto manualmente
-                // Assicurati che apiBaseUrl NON finisca con slash
-                const cleanUrl = apiBaseUrl.replace(/\/$/, "");
-
-                const response = await fetch(cleanUrl + "/voto", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                        // "Authorization": token // Se volessimo proteggere l'API col token
-                    },
+                const res = await fetch(apiBaseUrl + "/voto", {
+                    method: 'POST',
                     body: JSON.stringify(data)
                 });
+                alert("Voto inserito!");
+            } catch (e) { alert("Errore: " + e); }
+        }
 
-                const result = await response.json();
+        // --- FUNZIONI STUDENTE ---
+        async function setupStudent(email) {
+            document.getElementById('student-name').innerText = email;
+            switchView('view-student');
 
-                if (response.ok) {
-                    document.getElementById("api-msg").className = "success";
-                    document.getElementById("api-msg").innerText = "Successo! " + (result.message || JSON.stringify(result));
-                } else {
-                    document.getElementById("api-msg").className = "error";
-                    document.getElementById("api-msg").innerText = "Errore Server: " + JSON.stringify(result);
-                }
-            } catch (error) {
-                console.error(error);
-                document.getElementById("api-msg").className = "error";
-                document.getElementById("api-msg").innerText = "Errore di Rete (CORS o URL errato): " + error;
+            // Scarica i voti
+            const res = await fetch(apiBaseUrl + "/voto?email=" + email);
+            const data = await res.json();
+
+            // Mostra Medie
+            const divMedie = document.getElementById('lista-medie');
+            divMedie.innerHTML = "";
+            for (const [materia, media] of Object.entries(data.medie)) {
+                divMedie.innerHTML += `<p><b>${materia}</b>: <span class="media-badge">${media}</span></p>`;
             }
+
+            // Mostra Lista Voti
+            const divVoti = document.getElementById('lista-voti');
+            divVoti.innerHTML = "";
+            data.voti.forEach(v => {
+                divVoti.innerHTML += `<div class="voto-card">
+                    <strong>${v.materia}</strong>: ${v.voto} <br> 
+                    <small>Prof: ${v.teacher} - Data: ${v.data.substring(0, 10)}</small>
+                </div>`;
+            });
         }
 
         function logout() {
-            var cognitoUser = userPool.getCurrentUser();
-            if (cognitoUser != null) cognitoUser.signOut();
-            location.reload();
+            if (currentUser) currentUser.signOut();
+            window.location.reload();
         }
     </script>
 </body>

@@ -2,60 +2,101 @@ import json
 import boto3
 import os
 import datetime
+from boto3.dynamodb.conditions import Key
 
-# Clienti AWS
 dynamodb = boto3.resource('dynamodb')
 sns = boto3.client('sns')
 
-# Variabili d'ambiente passate da Terraform
 TABLE_NAME = os.environ.get('TABLE_NAME')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 
 def lambda_handler(event, context):
-    print("Evento ricevuto:", event) # Per debug nei log
+    print("Evento:", event)
     
+    # Gestione CORS per il browser
+    headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+    }
+
     try:
-        # 1. Parsing del body
-        if 'body' in event:
-            body = json.loads(event['body'])
-        else:
-            body = event # Fallback per test diretti
+        # Se è una chiamata GET (Lettura voti)
+        if event['requestContext']['http']['method'] == 'GET':
+            return gestisci_lettura(event, headers)
 
-        student_id = body.get('student_id')
-        materia = body.get('materia')
-        voto = body.get('voto')
-        
-        if not student_id or not voto:
-            return {'statusCode': 400, 'body': json.dumps('Dati mancanti')}
+        # Se è una chiamata POST (Scrittura voto)
+        if event['requestContext']['http']['method'] == 'POST':
+            return gestisci_scrittura(event, headers)
 
-        # 2. Scrittura su DynamoDB
+    except Exception as e:
+        print(f"Errore: {str(e)}")
+        return {'statusCode': 500, 'headers': headers, 'body': json.dumps(f"Errore: {str(e)}")}
+
+def gestisci_scrittura(event, headers):
+    body = json.loads(event['body'])
+    action = body.get('action')
+
+    # Aggiungi Voto
+    if action == 'add_grade':
+        student_email = body['student_email']
+        materia = body['materia']
+        voto = float(body['voto'])
+        teacher = body.get('teacher_email', 'Prof')
+
         table = dynamodb.Table(TABLE_NAME)
         timestamp = datetime.datetime.now().isoformat()
         
+        # Salviamo su DynamoDB
+        # PK = EMAIL_STUDENTE (così possiamo trovare tutti i voti di uno studente)
         item = {
-            'PK': f"STUDENT#{student_id}",
+            'PK': f"STUDENT#{student_email}",
             'SK': f"VOTO#{timestamp}",
             'materia': materia,
             'voto': str(voto),
-            'data': timestamp
+            'data': timestamp,
+            'teacher': teacher
         }
-        
         table.put_item(Item=item)
 
-        # 3. Invio Notifica SNS (Email)
-        message = f"Nuovo voto registrato per {student_id} in {materia}: {voto}"
-        sns.publish(
-            TopicArn=SNS_TOPIC_ARN,
-            Message=message,
-            Subject="Notifica Registro Elettronico"
-        )
+        # Notifica SNS
+        msg = f"Nuovo voto per {student_email}: {voto} in {materia}"
+        sns.publish(TopicArn=SNS_TOPIC_ARN, Message=msg, Subject="Nuovo Voto")
 
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'message': 'Voto salvato e notifica inviata via email!', 'id': student_id})
-        }
+        return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
-    except Exception as e:
-        print(e)
-        return {'statusCode': 500, 'body': json.dumps(f"Errore interno: {str(e)}")}
+def gestisci_lettura(event, headers):
+    # Recuperiamo l'email dalla query string ?email=...
+    params = event.get('queryStringParameters', {})
+    student_email = params.get('email')
+
+    if not student_email:
+        return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Manca l'email")}
+
+    table = dynamodb.Table(TABLE_NAME)
+    
+    # Cerchiamo tutti i record che iniziano con PK = STUDENT#email
+    response = table.query(
+        KeyConditionExpression=Key('PK').eq(f"STUDENT#{student_email}")
+    )
+    
+    items = response.get('Items', [])
+    
+    # Calcolo Medie
+    voti_per_materia = {}
+    for item in items:
+        mat = item['materia']
+        val = float(item['voto'])
+        if mat not in voti_per_materia:
+            voti_per_materia[mat] = []
+        voti_per_materia[mat].append(val)
+        
+    medie = {}
+    for mat, lista_voti in voti_per_materia.items():
+        medie[mat] = round(sum(lista_voti) / len(lista_voti), 1)
+
+    return {
+        'statusCode': 200, 
+        'headers': headers, 
+        'body': json.dumps({'voti': items, 'medie': medie})
+    }

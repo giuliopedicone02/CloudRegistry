@@ -24,6 +24,26 @@ resource "aws_dynamodb_table" "db" {
 # 2. COGNITO
 resource "aws_cognito_user_pool" "pool" {
   name = "RegistryPool"
+
+  # Abilitiamo l'auto-iscrizione (Registrazione)
+  admin_create_user_config {
+    allow_admin_create_user_only = false
+  }
+
+  # Definiamo gli attributi extra
+  schema {
+    attribute_data_type = "String"
+    name                = "role"     # Teacher o Student
+    mutable             = true
+    string_attribute_constraints { min_length = 1; max_length = 20; }
+  }
+
+  schema {
+    attribute_data_type = "String"
+    name                = "classe"   # es. 5A
+    mutable             = true
+    string_attribute_constraints { min_length = 1; max_length = 10; }
+  }
 }
 
 resource "aws_cognito_user_pool_client" "client" {
