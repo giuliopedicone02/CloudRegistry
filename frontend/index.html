@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CloudRegistry - Login</title>
+
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
+    <script src="https://unpkg.com/amazon-cognito-identity-js@5.2.9/dist/amazon-cognito-identity.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: #f4f4f4;
+        }
+
+        .box {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        input,
+        button {
+            display: block;
+            width: 100%;
+            margin: 0.8rem 0;
+            padding: 0.8rem;
+            box-sizing: border-box;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #0073bb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #005b96;
+        }
+
+        #dashboard {
+            display: none;
+        }
+
+        .error {
+            color: red;
+            font-size: 0.9rem;
+        }
+
+        .success {
+            color: green;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Registro Elettronico Cloud</h1>
+
+    <div id="login-section" class="box">
+        <h2>Accedi</h2>
+        <input type="text" id="username" placeholder="Username (es. prof_rossi)">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p id="login-msg" class="error"></p>
+    </div>
+
+    <div id="dashboard" class="box">
+        <h2 id="welcome-msg">Benvenuto</h2>
+        <p>Sei autenticato nel sistema.</p>
+        <hr>
+
+        <h3>Inserisci Voto</h3>
+        <input type="text" id="student_id" placeholder="Nome Studente (es. Mario)">
+        <input type="text" id="materia" placeholder="Materia (es. Storia)">
+        <input type="number" id="voto" placeholder="Voto (es. 8)">
+        <button onclick="inviaVoto()">Invia Voto</button>
+        <p id="api-msg"></p>
+
+        <button onclick="logout()" style="background:#cc0000; margin-top:20px;">Logout</button>
+    </div>
+
+    <script>
+        // --- 2. INCOLLA I TUOI DATI QUI SOTTO ---
+
+        // --- CONFIGURAZIONE ---
+        const poolData = {
+            UserPoolId: 'eu-central-1_JJ7KlMNcu',       // Il tuo Pool ID
+            ClientId: '4vq33ie3iig4918jchrhhfhcql'    // Il tuo Client ID
+        };
+
+        // ATTENZIONE: Copia questo URL ESATTO (ho tolto la parte finale //voto)
+        const apiBaseUrl = 'https://16zqbpqdvh.execute-api.eu-central-1.amazonaws.com';
+        // ------------------------------------------------
+
+        var userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+        var currentUser;
+
+        function login() {
+            var userVal = document.getElementById("username").value;
+            var passVal = document.getElementById("password").value;
+
+            if (!userVal || !passVal) {
+                document.getElementById("login-msg").innerText = "Inserisci user e password";
+                return;
+            }
+
+            var authenticationData = { Username: userVal, Password: passVal };
+            var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+
+            var userData = { Username: userVal, Pool: userPool };
+            var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+            document.getElementById("login-msg").innerText = "Login in corso...";
+
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: function (result) {
+                    console.log("Login riuscito!");
+                    currentUser = result;
+                    mostraDashboard();
+                },
+                onFailure: function (err) {
+                    console.error(err);
+                    document.getElementById("login-msg").innerText = "Errore: " + (err.message || JSON.stringify(err));
+                },
+                newPasswordRequired: function (userAttributes, requiredAttributes) {
+                    // Gestisce il cambio password obbligatorio al primo accesso
+                    var newPw = prompt("È il primo accesso. Imposta una nuova password:");
+                    if (newPw) {
+                        cognitoUser.completeNewPasswordChallenge(newPw, {}, {
+                            onSuccess: function (result) { login(); },
+                            onFailure: function (err) { document.getElementById("login-msg").innerText = "Errore cambio pass: " + err.message; }
+                        });
+                    } else {
+                        document.getElementById("login-msg").innerText = "Cambio password annullato.";
+                    }
+                }
+            });
+        }
+
+        function mostraDashboard() {
+            document.getElementById("login-section").style.display = "none";
+            document.getElementById("dashboard").style.display = "block";
+            document.getElementById("welcome-msg").innerText = "Benvenuto " + document.getElementById("username").value;
+        }
+
+        async function inviaVoto() {
+            if (!currentUser) { alert("Sessione scaduta, rifai login"); return; }
+
+            // Recupera il token JWT per sicurezza (opzionale, ma buona pratica)
+            // const token = currentUser.getIdToken().getJwtToken();
+
+            const data = {
+                student_id: document.getElementById("student_id").value,
+                materia: document.getElementById("materia").value,
+                voto: document.getElementById("voto").value
+            };
+
+            document.getElementById("api-msg").className = "";
+            document.getElementById("api-msg").innerText = "Invio in corso...";
+
+            try {
+                // CORREZIONE URL: Aggiungiamo qui /voto manualmente
+                // Assicurati che apiBaseUrl NON finisca con slash
+                const cleanUrl = apiBaseUrl.replace(/\/$/, "");
+
+                const response = await fetch(cleanUrl + "/voto", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                        // "Authorization": token // Se volessimo proteggere l'API col token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById("api-msg").className = "success";
+                    document.getElementById("api-msg").innerText = "Successo! " + (result.message || JSON.stringify(result));
+                } else {
+                    document.getElementById("api-msg").className = "error";
+                    document.getElementById("api-msg").innerText = "Errore Server: " + JSON.stringify(result);
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById("api-msg").className = "error";
+                document.getElementById("api-msg").innerText = "Errore di Rete (CORS o URL errato): " + error;
+            }
+        }
+
+        function logout() {
+            var cognitoUser = userPool.getCurrentUser();
+            if (cognitoUser != null) cognitoUser.signOut();
+            location.reload();
+        }
+    </script>
+</body>
+
+</html>
