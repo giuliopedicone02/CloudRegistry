@@ -148,28 +148,66 @@
             });
         }
 
-        // --- LOGIN ---
+        // --- LOGIN CORRETTO ---
         function login() {
             const email = document.getElementById('login-user').value;
             const pass = document.getElementById('login-pass').value;
 
-            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
+            // Creiamo l'oggetto Utente
+            const userData = { Username: email, Pool: userPool };
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
             const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass });
 
             cognitoUser.authenticateUser(authDetails, {
                 onSuccess: (result) => {
-                    currentUser = result;
-                    // Recuperiamo gli attributi (Ruolo, Classe)
-                    currentUser.getUserAttributes((err, attrs) => {
-                        if (err) return;
-                        const roleObj = attrs.find(a => a.getName() === 'custom:role');
-                        const role = roleObj ? roleObj.getValue() : 'Student';
+                    console.log("Login riuscito!");
 
-                        if (role === 'Teacher') setupTeacher(email);
-                        else setupStudent(email);
+                    // CORREZIONE QUI:
+                    // 'result' sono i token. 'cognitoUser' è l'oggetto utente che ha i metodi.
+                    currentUser = cognitoUser;
+
+                    // Ora possiamo chiedere gli attributi all'oggetto utente
+                    currentUser.getUserAttributes((err, attrs) => {
+                        if (err) {
+                            alert("Errore recupero attributi: " + err);
+                            return;
+                        }
+
+                        // Cerchiamo il ruolo tra gli attributi ricevuti
+                        // Se non c'è, mettiamo 'Student' come default
+                        let role = 'Student';
+
+                        // Cerca l'attributo 'custom:role'
+                        for (let i = 0; i < attrs.length; i++) {
+                            if (attrs[i].getName() === 'custom:role') {
+                                role = attrs[i].getValue();
+                                break;
+                            }
+                        }
+
+                        console.log("Ruolo rilevato:", role);
+
+                        if (role === 'Teacher') {
+                            setupTeacher(email);
+                        } else {
+                            setupStudent(email);
+                        }
                     });
                 },
-                onFailure: (err) => alert("Login fallito: " + err.message)
+                onFailure: (err) => {
+                    alert("Login fallito: " + (err.message || JSON.stringify(err)));
+                },
+                newPasswordRequired: (userAttributes, requiredAttributes) => {
+                    // Gestione primo accesso (cambio password obbligatorio)
+                    const newPw = prompt("Primo accesso. Imposta una nuova password:");
+                    if (newPw) {
+                        cognitoUser.completeNewPasswordChallenge(newPw, {}, {
+                            onSuccess: (result) => { login(); }, // Riprova login
+                            onFailure: (err) => alert("Errore cambio pass: " + err.message)
+                        });
+                    }
+                }
             });
         }
 
