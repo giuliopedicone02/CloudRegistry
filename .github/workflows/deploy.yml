@@ -3,35 +3,39 @@ name: Deploy CloudRegistry
 on:
   push:
     branches: [ main ]
+  workflow_dispatch: # Permette di lanciare il deploy manualmente
 
 jobs:
   terraform:
     name: 'Terraform Deploy'
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: ./terraform
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
+      uses: hashicorp/setup-terraform@v2
       with:
-        terraform_version: 1.0.0
+        terraform_version: 1.5.0
 
     - name: Terraform Init
-      run: terraform init
+      # Passiamo le credenziali come variabili d'ambiente
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         AWS_REGION: 'us-east-1'
+      run: terraform init
 
     - name: Terraform Apply
-      run: terraform apply -auto-approve
+      # Anche qui servono le credenziali
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         AWS_REGION: 'us-east-1'
+      run: terraform apply -auto-approve
