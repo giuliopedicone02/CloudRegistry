@@ -177,15 +177,84 @@ resource "aws_lambda_permission" "api_perm" {
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
-# OUTPUTS
-output "cognito_user_pool_id" {
-  value = aws_cognito_user_pool.pool.id
+# --- 7. S3 STATIC WEBSITE HOSTING ---
+
+# Generiamo un nome univoco casuale per il bucket
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
 }
 
-output "cognito_client_id" {
-  value = aws_cognito_user_pool_client.client.id
+resource "aws_s3_bucket" "frontend" {
+  bucket = "registro-cloud-frontend-${random_id.bucket_suffix.hex}"
+  force_destroy = true # Permette di cancellare il bucket anche se pieno
 }
 
-output "url_da_copiare" {
-  value = aws_apigatewayv2_stage.stage.invoke_url
+# Configuriamo il bucket come sito web
+resource "aws_s3_bucket_website_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  index_document {
+    suffix = "index.html"
+  }
+}
+
+# Rendiamo il bucket pubblico (necessario per static hosting semplice)
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "frontend_public_read" {
+  bucket = aws_s3_bucket.frontend.id
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.frontend.arn}/*"
+      },
+    ]
+  })
+}
+
+# --- 8. UPLOAD DEI FILE ---
+
+# 1. Carica index.html (File statico)
+resource "aws_s3_object" "index" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "index.html"
+  source       = "index.html"
+  content_type = "text/html"
+  etag         = filemd5("index.html") # Ricarica se il file cambia
+}
+
+# 2. GENERA E CARICA config.js (File Dinamico)
+resource "aws_s3_object" "config" {
+  bucket       = aws_s3_bucket.frontend.id
+  key          = "config.js"
+  content_type = "application/javascript"
+  
+  # Qui avviene la magia: creiamo il contenuto del file al volo
+  content = <<EOF
+window.apiConfig = {
+    UserPoolId: "${aws_cognito_user_pool.pool.id}",
+    ClientId:   "${aws_cognito_user_pool_client.client.id}",
+    ApiUrl:     "${aws_apigatewayv2_stage.stage.invoke_url}"
+};
+EOF
+}
+
+# --- NUOVO OUTPUT ---
+output "SITO_WEB_URL" {
+  value = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
+  description = "Clicca qui per vedere il sito funzionante"
 }

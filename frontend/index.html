@@ -191,14 +191,20 @@
         <div id="lista-voti"></div>
     </div>
 
+    <script src="config.js"></script>
+
     <script>
-        // --- CONFIGURAZIONE: INCOLLA QUI I NUOVI VALORI SE CAMBIANO ---
+
+        if (typeof window.apiConfig === 'undefined') {
+            alert("Errore: config.js non caricato. Controlla il deploy Terraform.");
+        }
+
+        // Usiamo le variabili globali caricate da config.js
         const poolData = {
-            UserPoolId: 'eu-central-1_JJ7KlMNcu',
-            ClientId: '4vq33ie3iig4918jchrhhfhcql'
+            UserPoolId: window.apiConfig.UserPoolId,
+            ClientId: window.apiConfig.ClientId
         };
-        const apiBaseUrl = 'https://e9etb79cjh.execute-api.eu-central-1.amazonaws.com/';
-        // --------------------------------------------------------------
+        const apiBaseUrl = window.apiConfig.ApiUrl;
 
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
         let currentUser;
