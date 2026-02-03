@@ -152,6 +152,18 @@
         <button class="secondary" onclick="switchView('view-login')">Annulla</button>
     </div>
 
+    <div id="view-verify" class="box">
+        <h2>📩 Verifica Email</h2>
+        <p>Abbiamo inviato un codice alla tua email. Inseriscilo qui sotto.</p>
+
+        <input type="text" id="verify-email" placeholder="La tua email" readonly style="background:#eee">
+
+        <input type="text" id="verify-code" placeholder="Codice (es. 123456)">
+
+        <button onclick="confirmVerification()">Conferma Account</button>
+        <button class="secondary" onclick="switchView('view-login')">Torna al Login</button>
+    </div>
+
     <div id="view-teacher" class="box">
         <div style="display:flex; justify-content:space-between; align-items:center">
             <h2>👨‍🏫 Prof. <span id="teacher-name-display"></span></h2>
@@ -244,7 +256,34 @@
 
             userPool.signUp(email, pass, attributeList, null, (err, result) => {
                 if (err) { alert(err.message || JSON.stringify(err)); return; }
-                alert('Account creato! Controlla la mail per la password o usa lo script per settarla.');
+
+                // --- NOVITÀ: Invece di alert, andiamo alla verifica ---
+                alert('Codice inviato! Controlla la mail.');
+
+                // Pre-compiliamo il campo email nella schermata di verifica
+                document.getElementById('verify-email').value = email;
+
+                // Mostriamo la schermata di verifica
+                switchView('view-verify');
+            });
+        }
+
+        function confirmVerification() {
+            const email = document.getElementById('verify-email').value;
+            const code = document.getElementById('verify-code').value;
+
+            // Creiamo un oggetto utente temporaneo per la verifica
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
+                Username: email,
+                Pool: userPool
+            });
+
+            cognitoUser.confirmRegistration(code, true, (err, result) => {
+                if (err) {
+                    alert("Errore verifica: " + (err.message || JSON.stringify(err)));
+                    return;
+                }
+                alert("✅ Account verificato con successo! Ora puoi fare il login.");
                 switchView('view-login');
             });
         }
