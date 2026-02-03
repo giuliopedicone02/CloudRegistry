@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Cloud Registry</title>
+    <title>Registro Cloud Pro</title>
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
     <script src="https://unpkg.com/amazon-cognito-identity-js@5.2.9/dist/amazon-cognito-identity.min.js"></script>
     <style>
@@ -63,7 +63,6 @@
             font-size: 0.9rem;
         }
 
-        /* Stili Tabella Docente */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -140,30 +139,29 @@
 
     <div id="view-register" class="box">
         <h2>📝 Nuova Registrazione</h2>
+        <input type="text" id="reg-name" placeholder="Nome (es. Mario)">
+        <input type="text" id="reg-surname" placeholder="Cognome (es. Rossi)">
         <input type="text" id="reg-email" placeholder="Email">
         <input type="password" id="reg-pass" placeholder="Password (es. Password123!)">
-        <select id="reg-role">
+        <select id="reg-role" onchange="toggleClasseInput()">
             <option value="Student">Studente</option>
             <option value="Teacher">Docente</option>
         </select>
-        <input type="text" id="reg-class" placeholder="Classe (es. 5A, 3B)">
+        <input type="text" id="reg-class" placeholder="Classe (es. 5A)">
         <button onclick="register()">Crea Account</button>
         <button class="secondary" onclick="switchView('view-login')">Annulla</button>
     </div>
 
     <div id="view-teacher" class="box">
         <div style="display:flex; justify-content:space-between; align-items:center">
-            <h2>👨‍🏫 Area Docente</h2>
+            <h2>👨‍🏫 Prof. <span id="teacher-name-display"></span></h2>
             <button class="secondary small" onclick="logout()">Esci</button>
         </div>
 
         <div class="filter-bar">
             <strong>Filtra per Classe:</strong>
             <select id="filter-class" onchange="renderStudentTable()" style="width: auto; flex-grow:1">
-                <option value="ALL">Tutte le classi</option>
-                <option value="5A">5A</option>
-                <option value="5B">5B</option>
-                <option value="3C">3C</option>
+                <option value="ALL">Caricamento classi...</option>
             </select>
             <button class="small" onclick="loadStudents()">🔄 Aggiorna</button>
         </div>
@@ -171,7 +169,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>Studente</th>
+                    <th>Studente (Cognome Nome)</th>
                     <th>Classe</th>
                     <th>Azione</th>
                 </tr>
@@ -183,9 +181,10 @@
 
     <div id="view-student" class="box">
         <div style="display:flex; justify-content:space-between; align-items:center">
-            <h2>🎓 Pagella di <span id="student-name"></span></h2>
+            <h2>🎓 Ciao, <span id="student-name-display"></span></h2>
             <button class="secondary small" onclick="logout()">Esci</button>
         </div>
+        <p>Ecco la tua situazione scolastica:</p>
         <div id="lista-medie" style="margin-bottom: 20px;"></div>
         <hr>
         <h3>Storico Voti</h3>
@@ -194,41 +193,52 @@
 
     <script>
         // --- CONFIGURAZIONE: INCOLLA QUI I NUOVI VALORI SE CAMBIANO ---
-        // Se non hai fatto 'terraform destroy', questi dovrebbero essere già giusti dal log precedente
         const poolData = {
-            UserPoolId: 'eu-central-1_JJ7KlMNcu',       // Il tuo Pool ID
-            ClientId: '4vq33ie3iig4918jchrhhfhcql'    // Il tuo Client ID
+            UserPoolId: 'eu-central-1_JJ7KlMNcu',
+            ClientId: '4vq33ie3iig4918jchrhhfhcql'
         };
-
-        // ATTENZIONE: Copia questo URL ESATTO (ho tolto la parte finale //voto)
-        const apiBaseUrl = "https://e9etb79cjh.execute-api.eu-central-1.amazonaws.com/";        // ------------------------------------------------
+        const apiBaseUrl = 'https://e9etb79cjh.execute-api.eu-central-1.amazonaws.com/';
         // --------------------------------------------------------------
 
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
         let currentUser;
-        let allStudents = []; // Cache studenti
+        let userData = {}; // Contiene nome, cognome, ruolo
+        let allStudents = [];
 
         function switchView(viewId) {
             document.querySelectorAll('.box').forEach(el => el.classList.remove('visible'));
             document.getElementById(viewId).classList.add('visible');
         }
 
+        function toggleClasseInput() {
+            const role = document.getElementById('reg-role').value;
+            const classInput = document.getElementById('reg-class');
+            if (role === 'Teacher') classInput.style.display = 'none';
+            else classInput.style.display = 'block';
+        }
+
         // --- AUTH ---
         function register() {
+            const nome = document.getElementById('reg-name').value;
+            const cognome = document.getElementById('reg-surname').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
             const role = document.getElementById('reg-role').value;
-            const classe = document.getElementById('reg-class').value.toUpperCase();
+            let classe = document.getElementById('reg-class').value.toUpperCase();
+
+            if (role === 'Teacher') classe = 'N/A';
 
             const attributeList = [
                 new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email }),
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "given_name", Value: nome }),
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "family_name", Value: cognome }),
                 new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:role", Value: role }),
                 new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:classe", Value: classe })
             ];
 
             userPool.signUp(email, pass, attributeList, null, (err, result) => {
                 if (err) { alert(err.message || JSON.stringify(err)); return; }
-                alert('Registrato! Controlla la mail.');
+                alert('Account creato! Controlla la mail per la password o usa lo script per settarla.');
                 switchView('view-login');
             });
         }
@@ -243,9 +253,20 @@
                     currentUser = cognitoUser;
                     currentUser.getUserAttributes((err, attrs) => {
                         if (err) return;
-                        const role = attrs.find(a => a.getName() === 'custom:role')?.getValue() || 'Student';
-                        if (role === 'Teacher') setupTeacher();
-                        else setupStudent(email);
+                        // Estrai attributi
+                        userData = {};
+                        attrs.forEach(a => { userData[a.getName()] = a.getValue(); });
+
+                        const fullName = `${userData['given_name'] || ''} ${userData['family_name'] || ''}`.trim() || email;
+                        const role = userData['custom:role'] || 'Student';
+
+                        if (role === 'Teacher') {
+                            document.getElementById('teacher-name-display').innerText = fullName;
+                            setupTeacher();
+                        } else {
+                            document.getElementById('student-name-display').innerText = fullName;
+                            setupStudent(email);
+                        }
                     });
                 },
                 onFailure: (err) => alert("Errore Login: " + err.message),
@@ -271,13 +292,23 @@
                     body: JSON.stringify({ action: 'get_students' })
                 });
                 const data = await res.json();
-                if (Array.isArray(data)) {
-                    allStudents = data;
+
+                if (data.students && data.classes) {
+                    allStudents = data.students;
+                    populateClassFilter(data.classes); // Popola menu a tendina
                     renderStudentTable();
                 } else {
-                    alert("Errore caricamento studenti: " + JSON.stringify(data));
+                    alert("Errore caricamento dati");
                 }
             } catch (e) { console.error(e); }
+        }
+
+        function populateClassFilter(classes) {
+            const select = document.getElementById('filter-class');
+            select.innerHTML = '<option value="ALL">Tutte le classi</option>';
+            classes.forEach(cls => {
+                select.innerHTML += `<option value="${cls}">${cls}</option>`;
+            });
         }
 
         function renderStudentTable() {
@@ -290,40 +321,41 @@
             filtered.forEach(s => {
                 tbody.innerHTML += `
                 <tr>
-                    <td>${s.email}</td>
+                    <td><b>${s.display_name}</b> <br><small>${s.email}</small></td>
                     <td><span style="background:#ddd; padding:2px 6px; border-radius:4px">${s.classe}</span></td>
-                    <td><button class="small" onclick="apriVoto('${s.email}')">Dai Voto</button></td>
+                    <td><button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">Voto</button></td>
                 </tr>`;
             });
 
             if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="3">Nessuno studente trovato.</td></tr>';
         }
 
-        async function apriVoto(studentEmail) {
-            const materia = prompt(`Materia per ${studentEmail}:`, "Matematica");
+        async function apriVoto(studentEmail, studentName) {
+            const materia = prompt(`Materia per ${studentName}:`, "Matematica");
             if (!materia) return;
             const voto = prompt("Voto (1-10):");
             if (!voto) return;
+
+            const teacherName = document.getElementById('teacher-name-display').innerText;
 
             try {
                 const res = await fetch(apiBaseUrl + "/voto", {
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'add_grade',
-                        teacher_email: currentUser.getUsername(),
+                        teacher_name: teacherName,
                         student_email: studentEmail,
                         materia: materia,
                         voto: voto
                     })
                 });
-                if (res.ok) alert("✅ Voto inviato e notifica partita!");
+                if (res.ok) alert("✅ Voto inviato!");
                 else alert("Errore invio voto");
             } catch (e) { alert("Errore: " + e); }
         }
 
         // --- LOGICA STUDENTE ---
         async function setupStudent(email) {
-            document.getElementById('student-name').innerText = email;
             switchView('view-student');
             try {
                 const res = await fetch(apiBaseUrl + "/voto?email=" + email);

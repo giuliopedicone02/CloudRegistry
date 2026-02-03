@@ -7,11 +7,11 @@ from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource('dynamodb')
 sns = boto3.client('sns')
-cognito = boto3.client('cognito-idp') # Nuovo client
+cognito = boto3.client('cognito-idp')
 
 TABLE_NAME = os.environ.get('TABLE_NAME')
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
-USER_POOL_ID = os.environ.get('USER_POOL_ID') # Nuova variabile
+USER_POOL_ID = os.environ.get('USER_POOL_ID')
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))
@@ -46,32 +46,51 @@ def gestisci_scrittura(event, headers):
     
     action = body.get('action')
 
-    # NUOVA AZIONE: Scarica lista studenti
+    # --- AZIONE: SCARICA LISTA STUDENTI E CLASSI ---
     if action == 'get_students':
         try:
-            # Chiede a Cognito tutti gli utenti
             response = cognito.list_users(UserPoolId=USER_POOL_ID)
             students = []
+            classes_set = set() # Usiamo un set per evitare duplicati
             
             for user in response['Users']:
                 attrs = {a['Name']: a['Value'] for a in user['Attributes']}
-                # Prendiamo solo chi ha ruolo Student
+                
+                # Filtriamo solo gli studenti
                 if attrs.get('custom:role') == 'Student':
+                    classe = attrs.get('custom:classe', 'N/A')
+                    nome = attrs.get('given_name', '')
+                    cognome = attrs.get('family_name', '')
+                    
+                    # Aggiungiamo la classe al set delle classi esistenti
+                    if classe != 'N/A':
+                        classes_set.add(classe)
+
                     students.append({
                         'email': attrs.get('email'),
-                        'classe': attrs.get('custom:classe', 'N/A')
+                        'nome': nome,
+                        'cognome': cognome,
+                        'classe': classe,
+                        'display_name': f"{cognome} {nome}" if nome else attrs.get('email')
                     })
             
-            return {'statusCode': 200, 'headers': headers, 'body': json.dumps(students)}
+            # Ordiniamo le classi e gli studenti
+            sorted_classes = sorted(list(classes_set))
+            students.sort(key=lambda x: x['cognome']) # Ordina per cognome
+            
+            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({
+                'students': students, 
+                'classes': sorted_classes
+            })}
         except Exception as e:
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
 
-    # AZIONE STANDARD: Aggiungi voto
+    # --- AZIONE: AGGIUNGI VOTO ---
     if action == 'add_grade':
         student_email = body.get('student_email')
         materia = body.get('materia')
         voto_raw = body.get('voto')
-        teacher = body.get('teacher_email', 'Prof')
+        teacher_name = body.get('teacher_name', 'Docente') # Ora passiamo il nome del prof
 
         table = dynamodb.Table(TABLE_NAME)
         timestamp = datetime.datetime.now().isoformat()
@@ -82,13 +101,12 @@ def gestisci_scrittura(event, headers):
             'materia': materia,
             'voto': str(voto_raw),
             'data': timestamp,
-            'teacher': teacher
+            'teacher': teacher_name
         }
         table.put_item(Item=item)
 
         try:
-            # Notifica personalizzata
-            msg = f"Ciao! Hai ricevuto un nuovo voto.\nMateria: {materia}\nVoto: {voto_raw}\nDocente: {teacher}"
+            msg = f"Ciao! Hai ricevuto un nuovo voto.\nMateria: {materia}\nVoto: {voto_raw}\nDocente: {teacher_name}"
             sns.publish(TopicArn=SNS_TOPIC_ARN, Message=msg, Subject=f"Nuovo Voto: {materia}")
         except Exception as sns_error:
             print(f"Errore SNS: {sns_error}")
