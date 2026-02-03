@@ -1,3 +1,11 @@
+terraform {
+  backend "s3" {
+    bucket = "terraform-state-cloud-registry-5780"  # <--- METTI IL TUO NOME BUCKET QUI
+    key    = "stato-registro/terraform.tfstate" # Nome del file di memoria
+    region = "eu-central-1"
+  }
+}
+
 provider "aws" {
   region = "eu-central-1"
 }
