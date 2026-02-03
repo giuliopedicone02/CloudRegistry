@@ -5,17 +5,18 @@ import datetime
 import traceback
 from boto3.dynamodb.conditions import Key
 
-# --- INIZIALIZZAZIONE CLIENT ---
+# --- INIZIALIZZAZIONE SERVIZI ---
 dynamodb = boto3.resource('dynamodb')
-# sns = boto3.client('sns') # Non serve più per le mail dirette
-ses = boto3.client('ses')   # Aggiunto il "Postino" per mail singole
+ses = boto3.client('ses')   # Usiamo SES (il "Postino") per messaggi privati
 cognito = boto3.client('cognito-idp')
 
-# --- VARIABILI AMBIENTE ---
+# --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
-# Inserisci qui la TUA mail verificata su SES (quella che manda i voti)
-SENDER_EMAIL = "pediconegiulio02@gmail.com" 
+
+# MITTENTE: Apparirà come "Registro Cloud", ma usa la tua mail verificata
+# IMPORTANTE: Questa mail DEVE essere verificata in AWS SES -> Identities
+SENDER_EMAIL = '"Registro Cloud" <pediconegiulio02@gmail.com>'
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))
@@ -50,7 +51,7 @@ def gestisci_scrittura(event, headers):
     
     action = body.get('action')
 
-    # --- AZIONE: SCARICA LISTA STUDENTI E CLASSI ---
+    # --- 1. SCARICA LISTA STUDENTI ---
     if action == 'get_students':
         try:
             response = cognito.list_users(UserPoolId=USER_POOL_ID)
@@ -59,15 +60,11 @@ def gestisci_scrittura(event, headers):
             
             for user in response['Users']:
                 attrs = {a['Name']: a['Value'] for a in user['Attributes']}
-                
-                # Filtriamo solo gli studenti
                 if attrs.get('custom:role') == 'Student':
                     classe = attrs.get('custom:classe', 'N/A')
                     nome = attrs.get('given_name', '')
                     cognome = attrs.get('family_name', '')
-                    
-                    if classe != 'N/A':
-                        classes_set.add(classe)
+                    if classe != 'N/A': classes_set.add(classe)
 
                     students.append({
                         'email': attrs.get('email'),
@@ -87,13 +84,14 @@ def gestisci_scrittura(event, headers):
         except Exception as e:
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
 
-    # --- AZIONE: AGGIUNGI VOTO ---
+    # --- 2. AGGIUNGI VOTO E INVIA MAIL ---
     if action == 'add_grade':
         student_email = body.get('student_email')
         materia = body.get('materia')
         voto_raw = body.get('voto')
         teacher_name = body.get('teacher_name', 'Docente')
 
+        # A. Salva nel Database
         table = dynamodb.Table(TABLE_NAME)
         timestamp = datetime.datetime.now().isoformat()
         
@@ -107,29 +105,35 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
-        # --- PARTE MODIFICATA: INVIO EMAIL DIRETTA CON SES ---
+        # B. Invia Email SOLO allo studente interessato
         try:
-            subject = f"Nuovo Voto: {materia}"
+            subject = f"Nuovo Voto in {materia}"
             messaggio = (
-                f"Ciao!\n\n"
-                f"Il Prof. {teacher_name} ha appena inserito un nuovo voto.\n"
+                f"Ciao {student_email},\n\n"
+                f"È stato appena inserito un nuovo voto sul tuo Registro Cloud.\n"
+                f"---------------------------------\n"
                 f"Materia: {materia}\n"
-                f"Voto: {voto_raw}\n\n"
-                f"Accedi al registro per vedere tutti i dettagli."
+                f"Voto: {voto_raw}\n"
+                f"Docente: {teacher_name}\n"
+                f"Data: {timestamp[:10]}\n"
+                f"---------------------------------\n\n"
+                f"Accedi al portale per vedere la tua media."
             )
 
             ses.send_email(
                 Source=SENDER_EMAIL,
-                Destination={'ToAddresses': [student_email]}, # Manda SOLO allo studente
+                Destination={'ToAddresses': [student_email]}, # <--- Manda SOLO a lui!
                 Message={
                     'Subject': {'Data': subject},
                     'Body': {'Text': {'Data': messaggio}}
                 }
             )
-            print(f"Mail inviata a {student_email}")
+            print(f"✅ Mail inviata con successo a {student_email}")
+            
         except Exception as mail_error:
-            # Stampiamo l'errore ma non blocchiamo il salvataggio del voto
-            print(f"Errore invio mail SES: {mail_error}")
+            # Se la mail fallisce (es. indirizzo non valido), stampiamo l'errore nei log
+            # ma NON blocchiamo l'inserimento del voto.
+            print(f"❌ Errore invio mail SES: {mail_error}")
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
