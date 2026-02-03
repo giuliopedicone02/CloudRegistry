@@ -232,9 +232,9 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.frontend.id
   key          = "index.html"
-  source       = "index.html"
+  source       = "frontend/index.html"
   content_type = "text/html"
-  etag         = filemd5("index.html") # Ricarica se il file cambia
+  etag         = filemd5("frontend/index.html") # Ricarica se il file cambia
 }
 
 # 2. GENERA E CARICA config.js (File Dinamico)
