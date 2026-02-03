@@ -55,6 +55,21 @@ resource "aws_cognito_user_pool" "pool" {
       max_length = 10
     }
   }
+
+  # 1. FONDAMENTALE: Dice a Cognito di inviare la mail di verifica
+  auto_verified_attributes = ["email"]
+
+  # 2. CONFIGURAZIONE MAIL: Usa il sistema di default gratuito di Cognito
+  email_configuration {
+    email_sending_account = "COGNITO_DEFAULT" 
+  }
+
+  # 3. MODELLO MAIL (Opzionale, ma utile per personalizzare)
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Il tuo codice di verifica registro Cloud"
+    email_message        = "Benvenuto! Il tuo codice di verifica è: {####}"
+  }
 }
 
 resource "aws_cognito_user_pool_client" "client" {
