@@ -203,6 +203,27 @@
         <div id="lista-voti"></div>
     </div>
 
+    <div id="view-notes" class="box">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+            <h2>⚠️ Note: <span id="note-student-name"></span></h2>
+            <button class="secondary small" onclick="switchView('view-teacher')">Chiudi</button>
+        </div>
+
+        <div style="background:#fff3cd; padding:10px; border-radius:5px; margin:10px 0; border:1px solid #ffeeba;">
+            <small>Questa sezione è gestita dal Microservizio <b>Docker/Fargate</b>.</small>
+        </div>
+
+        <div id="lista-note" style="margin-bottom:20px; max-height:200px; overflow-y:auto;">
+            <p>Caricamento...</p>
+        </div>
+
+        <hr>
+        <h3>Aggiungi Nota</h3>
+        <textarea id="note-text" rows="3" placeholder="Scrivi qui il motivo della nota..."
+            style="width:100%; padding:10px;"></textarea>
+        <button onclick="inviaNota()" style="background:#d63384;">Invia Nota Disciplinare</button>
+    </div>
+
     <script src="config.js"></script>
 
     <script>
@@ -368,7 +389,10 @@
                 <tr>
                     <td><b>${s.display_name}</b> <br><small>${s.email}</small></td>
                     <td><span style="background:#ddd; padding:2px 6px; border-radius:4px">${s.classe}</span></td>
-                    <td><button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">Voto</button></td>
+                    <td>
+                        <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">Voto</button>
+                        <button class="small secondary" onclick="apriNote('${s.email}', '${s.display_name}')" style="margin-left:5px; background:#d63384;">Note</button>
+                    </td>
                 </tr>`;
             });
 
@@ -423,6 +447,74 @@
                     </div>`;
                 });
             } catch (e) { console.error(e); }
+        }
+
+        // --- LOGICA NOTE (CONTAINER DOCKER) ---
+
+        const NOTE_API_URL = "http://3.75.92.98/";
+
+        let currentStudentEmail = null;
+
+        async function apriNote(email, name) {
+            currentStudentEmail = email;
+            document.getElementById('note-student-name').innerText = name;
+            switchView('view-notes');
+            loadNotes(email);
+        }
+
+        async function loadNotes(email) {
+            const listDiv = document.getElementById('lista-note');
+            listDiv.innerHTML = 'Wait... calling Docker Container...';
+
+            try {
+                // Chiamata al microservizio Flask su Fargate
+                const res = await fetch(`${NOTE_API_URL}/note?email=${email}`);
+                const notes = await res.json();
+
+                listDiv.innerHTML = '';
+                if (notes.length === 0) {
+                    listDiv.innerHTML = '<p>Nessuna nota disciplinare.</p>';
+                } else {
+                    notes.forEach(n => {
+                        listDiv.innerHTML += `
+                        <div style="border-left: 4px solid #d63384; padding: 10px; background: #fff0f6; margin-bottom: 10px;">
+                            <p style="margin:0">"${n.testo}"</p>
+                            <small style="color:#666">Prof: ${n.teacher} - Data: ${n.data.substring(0, 10)}</small>
+                        </div>`;
+                    });
+                }
+            } catch (e) {
+                listDiv.innerHTML = `<p style="color:red">Errore connessione container: ${e.message}</p>`;
+            }
+        }
+
+        async function inviaNota() {
+            const testo = document.getElementById('note-text').value;
+            if (!testo) return alert("Scrivi qualcosa!");
+
+            const teacherName = document.getElementById('teacher-name-display').innerText;
+
+            try {
+                const res = await fetch(`${NOTE_API_URL}/note`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        student_email: currentStudentEmail,
+                        testo: testo,
+                        teacher: teacherName
+                    })
+                });
+
+                if (res.ok) {
+                    alert("Nota inserita con successo!");
+                    document.getElementById('note-text').value = '';
+                    loadNotes(currentStudentEmail); // Ricarica la lista
+                } else {
+                    alert("Errore inserimento nota");
+                }
+            } catch (e) {
+                alert("Errore API Docker: " + e.message);
+            }
         }
     </script>
 </body>
