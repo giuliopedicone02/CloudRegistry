@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
-    bucket = "terraform-state-cloud-registry-5780"  # <--- METTI IL TUO NOME BUCKET QUI
-    key    = "stato-registro/terraform.tfstate" # Nome del file di memoria
+    bucket = "terraform-state-cloud-registry-5780"  # Assicurati che questo sia il tuo bucket corretto
+    key    = "stato-registro/terraform.tfstate"
     region = "eu-central-1"
   }
 }
@@ -17,7 +17,6 @@ resource "aws_dynamodb_table" "db" {
   hash_key     = "PK"
   range_key    = "SK"
 
-  # Sintassi corretta
   attribute {
     name = "PK"
     type = "S"
@@ -56,15 +55,13 @@ resource "aws_cognito_user_pool" "pool" {
     }
   }
 
-  # 1. FONDAMENTALE: Dice a Cognito di inviare la mail di verifica
+  # Configurazione Email per Cognito (Verifica Account)
   auto_verified_attributes = ["email"]
 
-  # 2. CONFIGURAZIONE MAIL: Usa il sistema di default gratuito di Cognito
   email_configuration {
     email_sending_account = "COGNITO_DEFAULT" 
   }
 
-  # 3. MODELLO MAIL (Opzionale, ma utile per personalizzare)
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
     email_subject        = "Il tuo codice di verifica registro Cloud"
@@ -77,12 +74,12 @@ resource "aws_cognito_user_pool_client" "client" {
   user_pool_id = aws_cognito_user_pool.pool.id
 }
 
-# 3. SNS
+# 3. SNS (Lasciato per compatibilità, ma useremo SES)
 resource "aws_sns_topic" "topic" {
   name = "RegistryNotifications"
 }
 
-# 4. IAM ROLE (V7 - NOME NUOVO)
+# 4. IAM ROLE
 resource "aws_iam_role" "iam_for_lambda" {
   name = "iam_for_lambda_registry_v7" 
   
@@ -98,12 +95,12 @@ resource "aws_iam_role" "iam_for_lambda" {
   })
 }
 
-# ✅ CORRETTO: Usa iam_for_lambda invece di lambda_role
 resource "aws_iam_role_policy_attachment" "lambda_sns" {
   role       = aws_iam_role.iam_for_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 }
 
+# --- QUI C'È LA MODIFICA IMPORTANTE ---
 resource "aws_iam_role_policy" "lambda_policy" {
   name = "lambda_policy_v7"
   role = aws_iam_role.iam_for_lambda.id
@@ -121,6 +118,13 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect   = "Allow"
         Resource = "*"
       },
+      # 👇👇👇 AGGIUNTO PERMESSO SES (POSTINO) 👇👇👇
+      {
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      # 👆👆👆 FINE AGGIUNTA 👆👆👆
       {
         Action   = ["logs:*"]
         Effect   = "Allow"
@@ -153,7 +157,7 @@ resource "aws_lambda_function" "backend" {
   }
 }
 
-# 6. API GATEWAY (V5 - NOME NUOVO)
+# 6. API GATEWAY
 resource "aws_apigatewayv2_api" "api" {
   name          = "RegistryAPI_v5"
   protocol_type = "HTTP"
@@ -191,7 +195,7 @@ resource "aws_apigatewayv2_route" "route_get" {
 }
 
 resource "aws_lambda_permission" "api_perm" {
-  statement_id  = "AllowAPI_v7" # ID UNIVOCO NUOVO
+  statement_id  = "AllowAPI_v7"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.backend.function_name
   principal     = "apigateway.amazonaws.com"
@@ -200,17 +204,15 @@ resource "aws_lambda_permission" "api_perm" {
 
 # --- 7. S3 STATIC WEBSITE HOSTING ---
 
-# Generiamo un nome univoco casuale per il bucket
 resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
 
 resource "aws_s3_bucket" "frontend" {
   bucket = "registro-cloud-frontend-${random_id.bucket_suffix.hex}"
-  force_destroy = true # Permette di cancellare il bucket anche se pieno
+  force_destroy = true 
 }
 
-# Configuriamo il bucket come sito web
 resource "aws_s3_bucket_website_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -219,7 +221,6 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   }
 }
 
-# Rendiamo il bucket pubblico (necessario per static hosting semplice)
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -249,22 +250,19 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
 
 # --- 8. UPLOAD DEI FILE ---
 
-# 1. Carica index.html (File statico)
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.frontend.id
   key          = "index.html"
   source       = "frontend/index.html"
   content_type = "text/html"
-  etag         = filemd5("frontend/index.html") # Ricarica se il file cambia
+  etag         = filemd5("frontend/index.html")
 }
 
-# 2. GENERA E CARICA config.js (File Dinamico)
 resource "aws_s3_object" "config" {
   bucket       = aws_s3_bucket.frontend.id
   key          = "config.js"
   content_type = "application/javascript"
   
-  # Qui avviene la magia: creiamo il contenuto del file al volo
   content = <<EOF
 window.apiConfig = {
     UserPoolId: "${aws_cognito_user_pool.pool.id}",
@@ -274,7 +272,6 @@ window.apiConfig = {
 EOF
 }
 
-# --- NUOVO OUTPUT ---
 output "SITO_WEB_URL" {
   value = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
   description = "Clicca qui per vedere il sito funzionante"

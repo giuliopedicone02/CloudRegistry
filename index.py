@@ -7,14 +7,20 @@ from boto3.dynamodb.conditions import Key
 
 # --- INIZIALIZZAZIONE SERVIZI ---
 dynamodb = boto3.resource('dynamodb')
-sns = boto3.client('sns')  # ✅ Usiamo SNS invece di SES
+# sns = boto3.client('sns')  <-- RIMUOVI O COMMENTA SNS
+ses = boto3.client('ses')    # <-- AGGIUNGI SES
 cognito = boto3.client('cognito-idp')
 
 # --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
 
+# ⚠️ IMPORTANTE: Sostituisci con la TUA mail verificata su AWS SES
+SENDER_EMAIL = "la_tua_mail_verificata@gmail.com" 
+
 def lambda_handler(event, context):
+    # ... (Il resto della funzione lambda_handler rimane uguale) ...
+    # Assicurati di copiare la parte iniziale del tuo file originale
     print("Evento:", json.dumps(event))
     
     headers = {
@@ -49,6 +55,7 @@ def gestisci_scrittura(event, headers):
 
     # --- 1. SCARICA LISTA STUDENTI ---
     if action == 'get_students':
+        # ... (Questa parte rimane identica al tuo file originale) ...
         try:
             response = cognito.list_users(UserPoolId=USER_POOL_ID)
             students = []
@@ -80,7 +87,7 @@ def gestisci_scrittura(event, headers):
         except Exception as e:
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
 
-    # --- 2. AGGIUNGI VOTO E INVIA MAIL ---
+    # --- 2. AGGIUNGI VOTO E INVIA MAIL (MODIFICATO CON SES) ---
     if action == 'add_grade':
         student_email = body.get('student_email')
         materia = body.get('materia')
@@ -101,7 +108,7 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
-        # B. Invia Email con SNS
+        # B. Invia Email con SES (Postino)
         try:
             subject = f"Nuovo Voto in {materia} - Registro Cloud"
             messaggio = (
@@ -113,33 +120,30 @@ def gestisci_scrittura(event, headers):
                 f"👨‍🏫 Docente: {teacher_name}\n"
                 f"📅 Data: {timestamp[:10]}\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"Accedi al portale per vedere la tua media aggiornata.\n\n"
-                f"Registro Cloud ☁️"
+                f"Accedi al portale per vedere la tua media aggiornata."
             )
 
-            # ✅ Invia con SNS usando EmailEndpoint
-            # IMPORTANTE: L'email dello studente deve essere sottoscritta al topic SNS
-            # oppure usiamo l'invio diretto via SMS/Email
-            response = sns.publish(
-                Message=messaggio,
-                Subject=subject,
-                MessageAttributes={
-                    'email': {
-                        'DataType': 'String',
-                        'StringValue': student_email
-                    }
+            # --- CODICE SES ---
+            ses.send_email(
+                Source=SENDER_EMAIL,
+                Destination={
+                    'ToAddresses': [student_email] # Invia SOLO a questo studente
+                },
+                Message={
+                    'Subject': {'Data': subject},
+                    'Body': {'Text': {'Data': messaggio}}
                 }
             )
-            
-            print(f"✅ Notifica SNS inviata con successo a {student_email}")
-            print(f"MessageId: {response.get('MessageId')}")
+            print(f"✅ Email SES inviata con successo a {student_email}")
             
         except Exception as mail_error:
-            print(f"❌ Errore invio notifica SNS: {mail_error}")
+            # Stampiamo l'errore ma NON blocchiamo l'inserimento del voto
+            print(f"❌ Errore invio Email SES: {mail_error}")
             traceback.print_exc()
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
+# ... (La funzione gestisci_lettura rimane uguale) ...
 def gestisci_lettura(event, headers):
     params = event.get('queryStringParameters') or {}
     student_email = params.get('email')
