@@ -15,7 +15,7 @@ TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
 
 # ⚠️ SOSTITUISCI CON LA TUA MAIL VERIFICATA SU SES
-SENDER_EMAIL = "pediconegiulio02@gmail.com" 
+SENDER_EMAIL = "pdcgli02e11c351e@studium.unict.it" 
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))

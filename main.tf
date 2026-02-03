@@ -100,7 +100,6 @@ resource "aws_iam_role_policy_attachment" "lambda_sns" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 }
 
-# --- QUI C'È LA MODIFICA IMPORTANTE ---
 resource "aws_iam_role_policy" "lambda_policy_v7" {
   name = "lambda_policy_v7"
   role = aws_iam_role.iam_for_lambda.id
