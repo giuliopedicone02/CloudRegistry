@@ -117,9 +117,10 @@ def gestisci_scrittura(event, headers):
                 f"Registro Cloud ☁️"
             )
 
-            # ✅ Invia con SNS (funziona senza Sandbox!)
-            sns.publish(
-                TopicArn=None,  # Non serve un Topic
+            # ✅ Invia con SNS usando EmailEndpoint
+            # IMPORTANTE: L'email dello studente deve essere sottoscritta al topic SNS
+            # oppure usiamo l'invio diretto via SMS/Email
+            response = sns.publish(
                 Message=messaggio,
                 Subject=subject,
                 MessageAttributes={
@@ -131,9 +132,11 @@ def gestisci_scrittura(event, headers):
             )
             
             print(f"✅ Notifica SNS inviata con successo a {student_email}")
+            print(f"MessageId: {response.get('MessageId')}")
             
         except Exception as mail_error:
             print(f"❌ Errore invio notifica SNS: {mail_error}")
+            traceback.print_exc()
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
