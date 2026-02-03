@@ -5,13 +5,17 @@ import datetime
 import traceback
 from boto3.dynamodb.conditions import Key
 
+# --- INIZIALIZZAZIONE CLIENT ---
 dynamodb = boto3.resource('dynamodb')
-sns = boto3.client('sns')
+# sns = boto3.client('sns') # Non serve più per le mail dirette
+ses = boto3.client('ses')   # Aggiunto il "Postino" per mail singole
 cognito = boto3.client('cognito-idp')
 
+# --- VARIABILI AMBIENTE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
-SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
+# Inserisci qui la TUA mail verificata su SES (quella che manda i voti)
+SENDER_EMAIL = "pediconegiulio02@gmail.com" 
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))
@@ -51,7 +55,7 @@ def gestisci_scrittura(event, headers):
         try:
             response = cognito.list_users(UserPoolId=USER_POOL_ID)
             students = []
-            classes_set = set() # Usiamo un set per evitare duplicati
+            classes_set = set()
             
             for user in response['Users']:
                 attrs = {a['Name']: a['Value'] for a in user['Attributes']}
@@ -62,7 +66,6 @@ def gestisci_scrittura(event, headers):
                     nome = attrs.get('given_name', '')
                     cognome = attrs.get('family_name', '')
                     
-                    # Aggiungiamo la classe al set delle classi esistenti
                     if classe != 'N/A':
                         classes_set.add(classe)
 
@@ -74,9 +77,8 @@ def gestisci_scrittura(event, headers):
                         'display_name': f"{cognome} {nome}" if nome else attrs.get('email')
                     })
             
-            # Ordiniamo le classi e gli studenti
             sorted_classes = sorted(list(classes_set))
-            students.sort(key=lambda x: x['cognome']) # Ordina per cognome
+            students.sort(key=lambda x: x['cognome'])
             
             return {'statusCode': 200, 'headers': headers, 'body': json.dumps({
                 'students': students, 
@@ -90,7 +92,7 @@ def gestisci_scrittura(event, headers):
         student_email = body.get('student_email')
         materia = body.get('materia')
         voto_raw = body.get('voto')
-        teacher_name = body.get('teacher_name', 'Docente') # Ora passiamo il nome del prof
+        teacher_name = body.get('teacher_name', 'Docente')
 
         table = dynamodb.Table(TABLE_NAME)
         timestamp = datetime.datetime.now().isoformat()
@@ -105,11 +107,29 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
+        # --- PARTE MODIFICATA: INVIO EMAIL DIRETTA CON SES ---
         try:
-            msg = f"Ciao! Hai ricevuto un nuovo voto.\nMateria: {materia}\nVoto: {voto_raw}\nDocente: {teacher_name}"
-            sns.publish(TopicArn=SNS_TOPIC_ARN, Message=msg, Subject=f"Nuovo Voto: {materia}")
-        except Exception as sns_error:
-            print(f"Errore SNS: {sns_error}")
+            subject = f"Nuovo Voto: {materia}"
+            messaggio = (
+                f"Ciao!\n\n"
+                f"Il Prof. {teacher_name} ha appena inserito un nuovo voto.\n"
+                f"Materia: {materia}\n"
+                f"Voto: {voto_raw}\n\n"
+                f"Accedi al registro per vedere tutti i dettagli."
+            )
+
+            ses.send_email(
+                Source=SENDER_EMAIL,
+                Destination={'ToAddresses': [student_email]}, # Manda SOLO allo studente
+                Message={
+                    'Subject': {'Data': subject},
+                    'Body': {'Text': {'Data': messaggio}}
+                }
+            )
+            print(f"Mail inviata a {student_email}")
+        except Exception as mail_error:
+            # Stampiamo l'errore ma non blocchiamo il salvataggio del voto
+            print(f"Errore invio mail SES: {mail_error}")
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
