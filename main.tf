@@ -101,7 +101,7 @@ resource "aws_iam_role_policy_attachment" "lambda_sns" {
 }
 
 # --- QUI C'È LA MODIFICA IMPORTANTE ---
-resource "aws_iam_role_policy" "lambda_policy" {
+resource "aws_iam_role_policy" "lambda_policy_v7" {
   name = "lambda_policy_v7"
   role = aws_iam_role.iam_for_lambda.id
   
@@ -118,7 +118,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect   = "Allow"
         Resource = "*"
       },
-      # 👇👇👇 AGGIUNTO PERMESSO SES (POSTINO) 👇👇👇
+      # 👇👇👇 AGGIUNGI QUESTO BLOCCO PER SES 👇👇👇
       {
         Action   = ["ses:SendEmail", "ses:SendRawEmail"]
         Effect   = "Allow"
