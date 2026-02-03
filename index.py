@@ -7,16 +7,12 @@ from boto3.dynamodb.conditions import Key
 
 # --- INIZIALIZZAZIONE SERVIZI ---
 dynamodb = boto3.resource('dynamodb')
-ses = boto3.client('ses')   # Usiamo SES (il "Postino") per messaggi privati
+sns = boto3.client('sns')  # ✅ Usiamo SNS invece di SES
 cognito = boto3.client('cognito-idp')
 
 # --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
-
-# MITTENTE: Apparirà come "Registro Cloud", ma usa la tua mail verificata
-# IMPORTANTE: Questa mail DEVE essere verificata in AWS SES -> Identities
-SENDER_EMAIL = '"Registro Cloud" <pediconegiulio02@gmail.com>'
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))
@@ -105,35 +101,39 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
-        # B. Invia Email SOLO allo studente interessato
+        # B. Invia Email con SNS
         try:
-            subject = f"Nuovo Voto in {materia}"
+            subject = f"Nuovo Voto in {materia} - Registro Cloud"
             messaggio = (
-                f"Ciao {student_email},\n\n"
-                f"È stato appena inserito un nuovo voto sul tuo Registro Cloud.\n"
-                f"---------------------------------\n"
-                f"Materia: {materia}\n"
-                f"Voto: {voto_raw}\n"
-                f"Docente: {teacher_name}\n"
-                f"Data: {timestamp[:10]}\n"
-                f"---------------------------------\n\n"
-                f"Accedi al portale per vedere la tua media."
+                f"Ciao,\n\n"
+                f"È stato inserito un nuovo voto sul tuo Registro Cloud.\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📚 Materia: {materia}\n"
+                f"📊 Voto: {voto_raw}\n"
+                f"👨‍🏫 Docente: {teacher_name}\n"
+                f"📅 Data: {timestamp[:10]}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"Accedi al portale per vedere la tua media aggiornata.\n\n"
+                f"Registro Cloud ☁️"
             )
 
-            ses.send_email(
-                Source=SENDER_EMAIL,
-                Destination={'ToAddresses': [student_email]}, # <--- Manda SOLO a lui!
-                Message={
-                    'Subject': {'Data': subject},
-                    'Body': {'Text': {'Data': messaggio}}
+            # ✅ Invia con SNS (funziona senza Sandbox!)
+            sns.publish(
+                TopicArn=None,  # Non serve un Topic
+                Message=messaggio,
+                Subject=subject,
+                MessageAttributes={
+                    'email': {
+                        'DataType': 'String',
+                        'StringValue': student_email
+                    }
                 }
             )
-            print(f"✅ Mail inviata con successo a {student_email}")
+            
+            print(f"✅ Notifica SNS inviata con successo a {student_email}")
             
         except Exception as mail_error:
-            # Se la mail fallisce (es. indirizzo non valido), stampiamo l'errore nei log
-            # ma NON blocchiamo l'inserimento del voto.
-            print(f"❌ Errore invio mail SES: {mail_error}")
+            print(f"❌ Errore invio notifica SNS: {mail_error}")
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 

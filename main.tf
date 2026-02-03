@@ -98,6 +98,11 @@ resource "aws_iam_role" "iam_for_lambda" {
   })
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_sns" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+}
+
 resource "aws_iam_role_policy" "lambda_policy" {
   name = "lambda_policy_v7"
   role = aws_iam_role.iam_for_lambda.id
