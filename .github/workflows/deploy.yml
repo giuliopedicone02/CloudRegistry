@@ -63,7 +63,7 @@ jobs:
         IMAGE_TAG: latest
       run: |
         # Entriamo nella cartella del backend note
-        cd backend-note
+        cd backend
         # Costruiamo l'immagine
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         # Spediamo l'immagine su AWS
