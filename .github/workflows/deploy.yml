@@ -14,28 +14,33 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
 
+    # MANIERE FORTI: Cancelliamo qualsiasi residuo locale che confonde Terraform
+    - name: Clean Old State
+      run: |
+        rm -rf .terraform
+        rm -f terraform.tfstate
+        rm -f terraform.tfstate.backup
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: 1.5.0
 
-    # Creiamo lo zip nella cartella principale
     - name: Zip Backend Code
       run: |
         zip codice.zip index.py
 
-    # Inizializziamo Terraform (SENZA cd infra)
+    # Init pulito che punta a S3 senza chiedere nulla
     - name: Terraform Init
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
-        terraform init -reconfigure
+        terraform init -input=false
 
-    # Applichiamo le modifiche (SENZA cd infra)
     - name: Terraform Apply
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
-        terraform apply -auto-approve
+        terraform apply -auto-approve -input=false
