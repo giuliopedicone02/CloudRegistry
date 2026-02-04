@@ -74,7 +74,7 @@ resource "aws_cognito_user_pool_client" "client" {
   user_pool_id = aws_cognito_user_pool.pool.id
 }
 
-# 3. SNS (Lasciato per compatibilità, ma useremo SES)
+# 3. SNS (Lasciato per compatibilità)
 resource "aws_sns_topic" "topic" {
   name = "RegistryNotifications"
 }
@@ -100,6 +100,7 @@ resource "aws_iam_role_policy_attachment" "lambda_sns" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 }
 
+# --- POLICY CORRETTA E PULITA ---
 resource "aws_iam_role_policy" "lambda_policy_v7" {
   name = "lambda_policy_v7"
   role = aws_iam_role.iam_for_lambda.id
@@ -117,13 +118,11 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
         Effect   = "Allow"
         Resource = "*"
       },
-      # 👇👇👇 AGGIUNGI QUESTO BLOCCO PER SES 👇👇👇
       {
         Action   = ["ses:SendEmail", "ses:SendRawEmail"]
         Effect   = "Allow"
         Resource = "*"
       },
-      # 👆👆👆 FINE AGGIUNTA 👆👆👆
       {
         Action   = ["logs:*"]
         Effect   = "Allow"
@@ -133,14 +132,7 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
         Action   = ["cognito-idp:ListUsers"]
         Effect   = "Allow"
         Resource = "*"
-      }
-      # ... (i permessi dynamodb, sns, ses restano uguali) ...
-      {
-        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
-        Effect   = "Allow"
-        Resource = "*"
       },
-      # 👇👇👇 AGGIUNGI QUESTO BLOCCO NUOVO 👇👇👇
       {
         Action   = [
           "ecs:ListTasks",
@@ -149,13 +141,7 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
         ]
         Effect   = "Allow"
         Resource = "*"
-      },
-      # 👆👆👆 FINE AGGIUNTA 👆👆👆
-      {
-        Action   = ["logs:*"]
-        Effect   = "Allow"
-        Resource = "*"
-      },
+      }
     ]
   })
 }
@@ -302,14 +288,14 @@ output "SITO_WEB_URL" {
 # SEZIONE CONTAINER (ECR + ECS FARGATE)
 # ==========================================
 
-# 1. ECR REPOSITORY (Il garage per l'immagine Docker)
+# 1. ECR REPOSITORY
 resource "aws_ecr_repository" "repo" {
   name                 = "registro-note-app"
   image_tag_mutability = "MUTABLE"
-  force_delete         = true # Permette di distruggere tutto con terraform destroy
+  force_delete         = true 
 }
 
-# 2. RETE (Usiamo la VPC di Default per semplicità)
+# 2. RETE
 data "aws_vpc" "default" {
   default = true
 }
@@ -321,7 +307,7 @@ data "aws_subnets" "default" {
   }
 }
 
-# Security Group per il container (Apre la porta 80)
+# Security Group
 resource "aws_security_group" "ecs_sg" {
   name        = "ecs-tasks-sg"
   description = "Allow HTTP inbound traffic"
@@ -342,9 +328,8 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# 3. IAM ROLES (Permessi per il Container)
+# 3. IAM ROLES (Container)
 
-# Ruolo di Esecuzione (Serve a Fargate per scaricare l'immagine e scrivere log)
 resource "aws_iam_role" "ecs_execution_role" {
   name = "ecs_execution_role_v1"
 
@@ -363,7 +348,6 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Ruolo del Task (Serve all'app Flask per usare DynamoDB)
 resource "aws_iam_role" "ecs_task_role" {
   name = "ecs_task_role_v1"
 
@@ -377,7 +361,6 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
-# Policy per DynamoDB
 resource "aws_iam_role_policy" "ecs_dynamo_policy" {
   name = "ecs_dynamo_access"
   role = aws_iam_role.ecs_task_role.id
@@ -394,7 +377,7 @@ resource "aws_iam_role_policy" "ecs_dynamo_policy" {
   })
 }
 
-# 4. CLUSTER ECS E TASK DEFINITION
+# 4. CLUSTER ECS E TASK
 
 resource "aws_ecs_cluster" "cluster" {
   name = "registro-cloud-cluster"
@@ -409,8 +392,8 @@ resource "aws_ecs_task_definition" "app" {
   family                   = "registro-note-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256" # 0.25 vCPU (Minimo per risparmiare)
-  memory                   = "512" # 0.5 GB RAM (Minimo)
+  cpu                      = "256" 
+  memory                   = "512" 
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
@@ -440,22 +423,21 @@ resource "aws_ecs_task_definition" "app" {
   ])
 }
 
-# 5. IL SERVIZIO (Lancia il container)
+# 5. SERVICE ECS
 resource "aws_ecs_service" "service" {
   name            = "registro-note-service"
   cluster         = aws_ecs_cluster.cluster.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 1 # Ne lanciamo solo 1 per risparmiare
+  desired_count   = 1 
   launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = data.aws_subnets.default.ids
     security_groups  = [aws_security_group.ecs_sg.id]
-    assign_public_ip = true # Fondamentale per raggiungerlo senza Load Balancer
+    assign_public_ip = true 
   }
 }
 
-# Output per sapere l'URL dell'ECR (serve alla CI/CD)
 output "ECR_REPO_URL" {
   value = aws_ecr_repository.repo.repository_url
 }
