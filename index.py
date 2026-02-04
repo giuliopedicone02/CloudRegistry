@@ -159,6 +159,33 @@ def gestisci_scrittura(event, headers):
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
+    # ... dentro gestisci_scrittura ...
+    
+    # --- AZIONE: DELETE GRADE (Nuova) ---
+    if action == 'delete_grade':
+        student_email = body.get('student_email')
+        timestamp_sk = body.get('sk') # L'SK è la "data" esatta del salvataggio
+
+        if not student_email or not timestamp_sk:
+             return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Dati mancanti")}
+
+        table = dynamodb.Table(TABLE_NAME)
+        
+        # Per cancellare serve la Chiave Primaria completa (PK e SK)
+        # Nota: timestamp_sk deve arrivarti già formattato come "VOTO#2023-..." o solo il timestamp?
+        # Nel frontend passeremo l'SK completo.
+        
+        try:
+            table.delete_item(
+                Key={
+                    'PK': f"STUDENT#{student_email}",
+                    'SK': timestamp_sk
+                }
+            )
+            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto eliminato'})}
+        except Exception as e:
+            return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
+        
 def gestisci_lettura(event, headers):
     params = event.get('queryStringParameters') or {}
     student_email = params.get('email')

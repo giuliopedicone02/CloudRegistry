@@ -64,3 +64,25 @@ def add_note():
 if __name__ == '__main__':
     # Ascolta su tutte le interfacce sulla porta 80
     app.run(host='0.0.0.0', port=80)
+
+# DELETE: Rimuovi una nota
+@app.route('/note', methods=['DELETE'])
+def delete_note():
+    # Flask legge il body anche nelle DELETE se glielo mandiamo
+    data = request.json
+    student_email = data.get('student_email')
+    note_sk = data.get('sk') # L'SK della nota (es. NOTA#2024-05...)
+
+    if not student_email or not note_sk:
+        return jsonify({"error": "Dati mancanti (email o sk)"}), 400
+
+    try:
+        table.delete_item(
+            Key={
+                'PK': f"STUDENT#{student_email}",
+                'SK': note_sk
+            }
+        )
+        return jsonify({"message": "Nota eliminata"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

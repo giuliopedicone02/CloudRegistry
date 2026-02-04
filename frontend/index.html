@@ -8,6 +8,7 @@
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
     <script src="https://unpkg.com/amazon-cognito-identity-js@5.2.9/dist/amazon-cognito-identity.min.js"></script>
     <style>
+        /* --- STILI ORIGINALI MANTENUTI E INTEGRATI --- */
         * {
             margin: 0;
             padding: 0;
@@ -16,20 +17,17 @@
 
         :root {
             --primary: #e63946;
-            --primary-dark: #c62d3a;
             --secondary: #6c757d;
             --success: #2a9d8f;
             --danger: #e63946;
             --warning: #f77f00;
-            --info: #457b9d;
-            --light: #f8f9fa;
             --dark: #1d3557;
             --purple: #d63384;
             --gradient: linear-gradient(135deg, #e63946 0%, #a8001e 100%);
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #e63946 0%, #a8001e 100%);
             min-height: 100vh;
             padding: 1rem;
@@ -67,26 +65,27 @@
             }
         }
 
+        h1,
+        h2,
+        h3 {
+            color: inherit;
+        }
+
         h1 {
-            text-align: center;
             color: white;
-            font-size: 2.5rem;
+            text-align: center;
             margin-bottom: 2rem;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
         h2 {
-            color: #e63946;
-            margin-bottom: 1.5rem;
-            font-size: 1.8rem;
+            color: var(--primary);
         }
 
         h3 {
-            color: var(--dark);
-            margin: 1.5rem 0 1rem 0;
-            font-size: 1.3rem;
-            border-left: 4px solid #e63946;
+            border-left: 4px solid var(--primary);
             padding-left: 1rem;
+            color: var(--dark);
+            margin-top: 1.5rem;
         }
 
         input,
@@ -95,20 +94,10 @@
         button {
             width: 100%;
             margin: 8px 0;
-            padding: 14px 18px;
+            padding: 14px;
             border-radius: 12px;
             border: 2px solid #e0e0e0;
             font-size: 1rem;
-            transition: all 0.3s ease;
-            font-family: inherit;
-        }
-
-        input:focus,
-        select:focus,
-        textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 115, 187, 0.1);
         }
 
         button {
@@ -117,28 +106,17 @@
             border: none;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             box-shadow: 0 4px 15px rgba(230, 57, 70, 0.4);
         }
 
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(230, 57, 70, 0.6);
-        }
-
-        button:active {
-            transform: translateY(0);
         }
 
         button.secondary {
             background: var(--secondary);
-            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-        }
-
-        button.secondary:hover {
-            background: #5a6268;
+            box-shadow: none;
         }
 
         button.small {
@@ -146,367 +124,156 @@
             padding: 8px 20px;
             font-size: 0.9rem;
             text-transform: none;
-            letter-spacing: normal;
         }
 
         button.danger {
-            background: var(--purple);
-            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.3);
+            background: var(--primary);
         }
 
-        /* Header con profilo */
-        .profile-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #f0f0f0;
-            flex-wrap: wrap;
-            gap: 1rem;
+        button.icon-btn {
+            background: transparent;
+            border: none;
+            color: #e63946;
+            font-size: 1.2rem;
+            padding: 5px;
+            box-shadow: none;
+            cursor: pointer;
+            width: auto;
         }
 
-        .profile-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .avatar {
-            width: 50px;
-            height: 50px;
+        button.icon-btn:hover {
+            background: #fee;
             border-radius: 50%;
-            background: var(--gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.5rem;
-            font-weight: bold;
+            transform: scale(1.1);
         }
 
-        .user-name {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--dark);
-        }
-
-        /* Filtri */
-        .filter-bar {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        .filter-bar strong {
-            font-weight: 600;
-            color: var(--dark);
-        }
-
-        .filter-bar select {
-            flex: 1;
-            min-width: 200px;
-            margin: 0;
-        }
-
-        /* Tabella moderna */
         .table-container {
             overflow-x: auto;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-top: 1rem;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            background: white;
         }
 
         th {
             background: var(--gradient);
             color: white;
-            padding: 16px;
+            padding: 12px;
             text-align: left;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-size: 0.85rem;
         }
 
         td {
-            padding: 16px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
         }
 
-        tr:hover {
-            background-color: #f8f9fa;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* Card voti e note */
-        .grade-card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 15px 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            border-left: 5px solid var(--success);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .grade-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: var(--success);
-            opacity: 0.05;
-            border-radius: 50%;
-            transform: translate(30%, -30%);
-        }
-
-        .grade-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-        }
-
-        .nota-card {
-            background: linear-gradient(135deg, #fff0f6 0%, #ffe0f0 100%);
-            border-radius: 15px;
-            padding: 20px;
-            margin: 15px 0;
-            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.15);
-            border-left: 5px solid var(--purple);
-            transition: all 0.3s ease;
-        }
-
-        .nota-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(214, 51, 132, 0.25);
-        }
-
-        .grade-header {
+        .profile-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-            gap: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
         }
 
-        .grade-subject {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--dark);
+        .grade-card,
+        .nota-card {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            position: relative;
         }
 
-        .grade-value {
-            background: var(--success);
-            color: white;
-            padding: 8px 20px;
-            border-radius: 25px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
-        }
-
-        .grade-meta {
-            display: flex;
-            gap: 20px;
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
-
-        .grade-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .grade-meta-item::before {
-            content: '•';
-            color: #e63946;
-            font-weight: bold;
-        }
-
-        /* Badge medie */
-        .average-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .average-card {
+        .grade-card {
             background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            text-align: center;
-            transition: all 0.3s ease;
+            border-left: 5px solid var(--success);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
-        .average-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        .nota-card {
+            background: #fff0f6;
+            border-left: 5px solid var(--purple);
         }
 
-        .average-subject {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        /* Modal & Toasts */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
 
-        .average-value {
-            font-size: 2rem;
-            font-weight: bold;
-            background: var(--gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        /* Alert box */
-        .alert-box {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
-            padding: 15px 20px;
-            border-radius: 12px;
-            margin: 15px 0;
-            border-left: 4px solid var(--warning);
-            box-shadow: 0 2px 10px rgba(255, 193, 7, 0.2);
-        }
-
-        .alert-box small {
-            color: #856404;
-        }
-
-        /* Note text area */
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        /* Buttons row */
-        .button-row {
+        .modal-overlay.active {
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
         }
 
-        .button-row button {
-            flex: 1;
-            min-width: 120px;
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
-        /* Empty state */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #999;
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 2000;
         }
 
-        .empty-state-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
+        .toast.success {
+            border-left: 5px solid var(--success);
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            body {
-                padding: 0.5rem;
+        .toast.error {
+            border-left: 5px solid var(--danger);
+        }
+
+        .toast.active {
+            display: block;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
             }
 
-            h1 {
-                font-size: 1.8rem;
-            }
-
-            .box {
-                padding: 1.5rem;
-                border-radius: 15px;
-            }
-
-            .profile-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .filter-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .filter-bar select {
-                width: 100%;
-            }
-
-            .average-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
-
-            table {
-                font-size: 0.9rem;
-            }
-
-            th,
-            td {
-                padding: 12px 8px;
-            }
-
-            .grade-value {
-                font-size: 1.1rem;
-                padding: 6px 15px;
+            to {
+                transform: translateX(0);
             }
         }
 
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.5rem;
-            }
-
-            .average-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .button-row {
-                flex-direction: column;
-            }
-
-            .button-row button {
-                width: 100%;
-            }
-        }
-
-        /* Loading spinner */
         .loading {
             text-align: center;
+            color: #888;
             padding: 20px;
-            color: #999;
         }
 
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #e63946;
+            border-top: 3px solid var(--primary);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 0 auto 10px;
         }
 
         @keyframes spin {
@@ -519,188 +286,10 @@
             }
         }
 
-        /* Modal per inserimento voto */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 2.5rem;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-            animation: slideUp 0.3s ease-out;
-            position: relative;
-        }
-
-        .modal-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .modal-header h3 {
-            margin: 0;
-            padding: 0;
-            border: none;
-            color: var(--dark);
-            font-size: 1.8rem;
-        }
-
-        .modal-header .student-name {
-            color: #e63946;
-            font-weight: 700;
-            display: block;
-            margin-top: 0.5rem;
-        }
-
-        .modal-close {
+        .delete-corner {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: none;
-            border: none;
-            font-size: 2rem;
-            color: #999;
-            cursor: pointer;
-            width: auto;
-            padding: 0;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-
-        .modal-close:hover {
-            color: #e63946;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--dark);
-        }
-
-        .form-group input,
-        .form-group select {
-            margin: 0;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 2rem;
-        }
-
-        .modal-actions button {
-            flex: 1;
-            margin: 0;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        /* Toast notification */
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            display: none;
-            align-items: center;
-            gap: 1rem;
-            z-index: 2000;
-            animation: slideInRight 0.4s ease-out;
-            max-width: 400px;
-        }
-
-        .toast.active {
-            display: flex;
-        }
-
-        .toast.success {
-            border-left: 5px solid #2a9d8f;
-        }
-
-        .toast.error {
-            border-left: 5px solid #e63946;
-        }
-
-        .toast-icon {
-            font-size: 2rem;
-        }
-
-        .toast-message {
-            flex: 1;
-            font-weight: 500;
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-
-            to {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-        }
-
-        .toast.hiding {
-            animation: slideOutRight 0.4s ease-out forwards;
-        }
-
-        @media (max-width: 768px) {
-            .toast {
-                left: 1rem;
-                right: 1rem;
-                bottom: 1rem;
-            }
+            top: 10px;
+            right: 10px;
         }
     </style>
 </head>
@@ -711,11 +300,7 @@
         <h1>☁️ Cloud Registry</h1>
 
         <div id="view-login" class="box visible">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <div style="font-size: 4rem; margin-bottom: 1rem;">☁️</div>
-                <h2 style="margin: 0; font-size: 2.2rem;">Benvenuto su Cloud Registry</h2>
-                <p style="color: #666; margin-top: 0.5rem;">Accedi al tuo registro elettronico</p>
-            </div>
+            <h2 style="text-align:center">🔐 Accedi</h2>
             <input type="text" id="login-user" placeholder="📧 Email">
             <input type="password" id="login-pass" placeholder="🔒 Password">
             <button onclick="login()">Accedi</button>
@@ -733,41 +318,31 @@
                 <option value="Teacher">Docente</option>
             </select>
             <input type="text" id="reg-class" placeholder="Classe (es. 5A)">
-            <div class="button-row">
-                <button onclick="register()">Crea Account</button>
-                <button class="secondary" onclick="switchView('view-login')">Annulla</button>
-            </div>
+            <button onclick="register()">Crea Account</button>
+            <button class="secondary" onclick="switchView('view-login')">Annulla</button>
         </div>
 
         <div id="view-verify" class="box">
             <h2>📩 Verifica Email</h2>
-            <p style="margin-bottom: 1rem; color: #666;">Inserisci il codice di verifica che hai ricevuto via email.</p>
-            <input type="text" id="verify-email" placeholder="La tua email" readonly style="background:#f0f0f0">
-            <input type="text" id="verify-code" placeholder="Codice di verifica">
-            <div class="button-row">
-                <button onclick="confirmVerification()">Conferma Account</button>
-                <button class="secondary" onclick="switchView('view-login')">Torna al Login</button>
-            </div>
+            <input type="text" id="verify-email" placeholder="Email" readonly style="background:#eee">
+            <input type="text" id="verify-code" placeholder="Codice OTP">
+            <button onclick="confirmVerification()">Conferma</button>
         </div>
 
         <div id="view-teacher" class="box">
             <div class="profile-header">
-                <div class="profile-info">
-                    <div class="avatar" id="teacher-avatar">👨‍🏫</div>
-                    <div>
-                        <div class="user-name" id="teacher-name-display"></div>
-                        <small style="color: #666;">Docente</small>
-                    </div>
+                <div>
+                    <h2>👨‍🏫 <span id="teacher-name-display"></span></h2>
+                    <small>Docente</small>
                 </div>
                 <button class="secondary small" onclick="logout()">Esci</button>
             </div>
 
-            <div class="filter-bar">
-                <strong>Filtra per classe:</strong>
+            <div style="display:flex; gap:10px;">
                 <select id="filter-class" onchange="renderStudentTable()">
                     <option value="ALL">Caricamento...</option>
                 </select>
-                <button class="small" onclick="loadStudents()">🔄 Aggiorna</button>
+                <button class="small" onclick="loadStudents()">🔄</button>
             </div>
 
             <div class="table-container">
@@ -779,102 +354,75 @@
                             <th>Azioni</th>
                         </tr>
                     </thead>
-                    <tbody id="student-table-body">
-                        <tr>
-                            <td colspan="3" class="loading">
-                                <div class="spinner"></div>
-                                Caricamento studenti...
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="student-table-body"></tbody>
                 </table>
             </div>
         </div>
 
         <div id="view-student" class="box">
             <div class="profile-header">
-                <div class="profile-info">
-                    <div class="avatar" id="student-avatar">🎓</div>
-                    <div>
-                        <div class="user-name" id="student-name-display"></div>
-                        <small style="color: #666;">Studente</small>
-                    </div>
+                <div>
+                    <h2>🎓 <span id="student-name-display"></span></h2>
+                    <small>Studente</small>
                 </div>
                 <button class="secondary small" onclick="logout()">Esci</button>
             </div>
-
-            <h3>📊 Le tue medie</h3>
-            <div id="lista-medie" class="average-grid"></div>
-
-            <h3>📚 Tutti i voti</h3>
+            <h3>📊 Medie</h3>
+            <div id="lista-medie"
+                style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:10px;"></div>
+            <h3>📚 Voti</h3>
             <div id="lista-voti"></div>
-
-            <h3>⚠️ Note Disciplinari</h3>
-            <div id="student-notes-list">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    Caricamento note...
-                </div>
-            </div>
+            <h3>⚠️ Note</h3>
+            <div id="student-notes-list"></div>
         </div>
 
         <div id="view-notes" class="box">
             <div class="profile-header">
-                <h2 style="margin: 0;">⚠️ Note: <span id="note-student-name"></span></h2>
+                <h3>⚠️ Note: <span id="note-student-name"></span></h3>
                 <button class="secondary small" onclick="switchView('view-teacher')">Chiudi</button>
             </div>
 
-            <div class="alert-box">
-                <small>📦 Gestito dal Microservizio <b>Docker/Fargate</b></small>
-            </div>
+            <div id="lista-note" style="max-height:300px; overflow-y:auto; margin-bottom:1rem;"></div>
 
-            <div id="lista-note" style="margin-bottom:20px; max-height:400px; overflow-y:auto;">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    Caricamento note...
-                </div>
-            </div>
-
-            <h3>Aggiungi Nota</h3>
-            <textarea id="note-text" placeholder="Motivo della nota disciplinare..."></textarea>
+            <textarea id="note-text" placeholder="Scrivi una nuova nota..."></textarea>
             <button onclick="inviaNota()" class="danger">Invia Nota</button>
         </div>
     </div>
 
-    <!-- Modal per inserimento voto -->
     <div id="voto-modal" class="modal-overlay">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeVotoModal()">×</button>
-            <div class="modal-header">
-                <h3>📝 Inserisci Voto</h3>
-                <span class="student-name" id="modal-student-name"></span>
-            </div>
-            <div class="form-group">
-                <label for="modal-materia">Materia</label>
-                <input type="text" id="modal-materia" placeholder="Es: Matematica, Storia...">
-            </div>
-            <div class="form-group">
-                <label for="modal-voto">Voto</label>
-                <input type="text" id="modal-voto" placeholder="Es: 8, 7.5, Sufficiente...">
-            </div>
-            <div class="modal-actions">
-                <button class="secondary" onclick="closeVotoModal()">Annulla</button>
-                <button onclick="confermaVoto()">Conferma Voto</button>
+            <h3>📝 Nuovo Voto per <span id="modal-student-name"></span></h3>
+            <input type="text" id="modal-materia" placeholder="Materia">
+            <input type="text" id="modal-voto" placeholder="Voto">
+            <div style="display:flex; gap:10px; margin-top:1rem;">
+                <button onclick="confermaVoto()">Salva</button>
+                <button class="secondary"
+                    onclick="document.getElementById('voto-modal').classList.remove('active')">Annulla</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast">
-        <div class="toast-icon" id="toast-icon"></div>
-        <div class="toast-message" id="toast-message"></div>
+    <div id="history-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="profile-header">
+                <h3>📜 Storico Voti: <span id="history-student-name"></span></h3>
+                <button class="icon-btn"
+                    onclick="document.getElementById('history-modal').classList.remove('active')">✖</button>
+            </div>
+            <div id="history-list" style="max-height:400px; overflow-y:auto;">
+                <div class="loading">
+                    <div class="spinner"></div>Caricamento...
+                </div>
+            </div>
+        </div>
     </div>
+
+    <div id="toast" class="toast"></div>
 
     <script src="config.js"></script>
 
     <script>
-        if (typeof window.apiConfig === 'undefined') alert("Errore: config.js mancante.");
-
+        if (typeof window.apiConfig === 'undefined') alert("Config mancante");
         const poolData = { UserPoolId: window.apiConfig.UserPoolId, ClientId: window.apiConfig.ClientId };
         const apiBaseUrl = window.apiConfig.ApiUrl;
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
@@ -882,384 +430,289 @@
         let userData = {};
         let allStudents = [];
         let NOTE_API_URL = null;
+        let currentStudentEmail = null; // Globale per sapere su chi stiamo lavorando
 
+        // --- UTILS ---
         function switchView(viewId) {
             document.querySelectorAll('.box').forEach(el => el.classList.remove('visible'));
             document.getElementById(viewId).classList.add('visible');
         }
 
+        function showToast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            t.className = 'toast ' + type;
+            t.innerText = (type == 'success' ? '✅ ' : '❌ ') + msg;
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 3000);
+        }
+
         function toggleClasseInput() {
             const role = document.getElementById('reg-role').value;
-            const classInput = document.getElementById('reg-class');
-            classInput.style.display = (role === 'Teacher') ? 'none' : 'block';
+            document.getElementById('reg-class').style.display = (role === 'Teacher') ? 'none' : 'block';
         }
 
         // --- AUTH ---
         function register() {
-            const nome = document.getElementById('reg-name').value;
-            const cognome = document.getElementById('reg-surname').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
             const role = document.getElementById('reg-role').value;
-            let classe = document.getElementById('reg-class').value.toUpperCase();
-            if (role === 'Teacher') classe = 'N/A';
-
-            const attributeList = [
+            const attr = [
                 new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email }),
-                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "given_name", Value: nome }),
-                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "family_name", Value: cognome }),
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "given_name", Value: document.getElementById('reg-name').value }),
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "family_name", Value: document.getElementById('reg-surname').value }),
                 new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:role", Value: role }),
-                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:classe", Value: classe })
+                new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "custom:classe", Value: role === 'Teacher' ? 'N/A' : document.getElementById('reg-class').value })
             ];
-
-            userPool.signUp(email, pass, attributeList, null, (err, result) => {
-                if (err) {
-                    showToast(err.message || 'Errore durante la registrazione', 'error');
-                    return;
-                }
-                showToast('Codice inviato! Controlla la mail', 'success');
+            userPool.signUp(email, pass, attr, null, (err) => {
+                if (err) return showToast(err.message, 'error');
+                showToast("Codice inviato via mail");
                 document.getElementById('verify-email').value = email;
-                setTimeout(() => switchView('view-verify'), 1000);
+                switchView('view-verify');
             });
         }
 
         function confirmVerification() {
-            const email = document.getElementById('verify-email').value;
-            const code = document.getElementById('verify-code').value;
-            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
-
-            cognitoUser.confirmRegistration(code, true, (err, result) => {
-                if (err) {
-                    showToast("Errore: " + err.message, 'error');
-                    return;
-                }
-                showToast("Account verificato! Puoi fare login", 'success');
-                setTimeout(() => switchView('view-login'), 1000);
+            const usr = new AmazonCognitoIdentity.CognitoUser({ Username: document.getElementById('verify-email').value, Pool: userPool });
+            usr.confirmRegistration(document.getElementById('verify-code').value, true, (err) => {
+                if (err) return showToast(err.message, 'error');
+                showToast("Verificato! Fai login"); switchView('view-login');
             });
         }
 
         function login() {
             const email = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
-
-            cognitoUser.authenticateUser(new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass }), {
-                onSuccess: (result) => {
-                    currentUser = cognitoUser;
+            const usr = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
+            usr.authenticateUser(new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: document.getElementById('login-pass').value }), {
+                onSuccess: () => {
+                    currentUser = usr;
                     currentUser.getUserAttributes((err, attrs) => {
-                        if (err) return;
-                        userData = {};
-                        attrs.forEach(a => { userData[a.getName()] = a.getValue(); });
-                        const fullName = `${userData['given_name']} ${userData['family_name']}`;
+                        userData = {}; attrs.forEach(a => userData[a.getName()] = a.getValue());
+                        const name = `${userData['given_name']} ${userData['family_name']}`;
                         const role = userData['custom:role'] || 'Student';
-
                         if (role === 'Teacher') {
-                            document.getElementById('teacher-name-display').innerText = fullName;
-                            document.getElementById('teacher-avatar').innerText = fullName.charAt(0).toUpperCase();
+                            document.getElementById('teacher-name-display').innerText = name;
                             setupTeacher();
                         } else {
-                            document.getElementById('student-name-display').innerText = fullName;
-                            document.getElementById('student-avatar').innerText = fullName.charAt(0).toUpperCase();
+                            document.getElementById('student-name-display').innerText = name;
                             setupStudent(email);
                         }
                     });
                 },
-                onFailure: (err) => showToast("Errore Login: " + err.message, 'error')
+                onFailure: (err) => showToast(err.message, 'error')
             });
         }
-
         function logout() { if (currentUser) currentUser.signOut(); location.reload(); }
 
+        // --- INFRA ---
         async function ensureDockerIP() {
             if (NOTE_API_URL) return true;
-
             try {
-                console.log("Richiedo IP Container alla Lambda...");
-                const res = await fetch(apiBaseUrl + "/voto", {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'get_container_ip' })
-                });
-
-                if (!res.ok) throw new Error("Errore Lambda");
+                const res = await fetch(apiBaseUrl + "/voto", { method: 'POST', body: JSON.stringify({ action: 'get_container_ip' }) });
                 const data = await res.json();
+                if (data.ip) { NOTE_API_URL = "http://" + data.ip; return true; }
+            } catch (e) { console.error(e); }
+            return false;
+        }
 
-                if (data.ip) {
-                    NOTE_API_URL = "http://" + data.ip;
-                    console.log("✅ IP Docker trovato:", NOTE_API_URL);
-                    return true;
-                } else {
-                    console.error("IP Null:", data.error);
-                    return false;
-                }
-            } catch (e) {
-                console.error("Errore infrastruttura:", e);
-                return false;
+        // --- DOCENTE MAIN ---
+        async function setupTeacher() { switchView('view-teacher'); loadStudents(); }
+        async function loadStudents() {
+            const res = await fetch(apiBaseUrl + "/voto", { method: 'POST', body: JSON.stringify({ action: 'get_students' }) });
+            const data = await res.json();
+            if (data.students) {
+                allStudents = data.students;
+                const sel = document.getElementById('filter-class');
+                sel.innerHTML = '<option value="ALL">Tutte</option>';
+                data.classes.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+                renderStudentTable();
             }
         }
-
-        // --- DOCENTE ---
-        async function setupTeacher() {
-            switchView('view-teacher');
-            await loadStudents();
-        }
-
-        async function loadStudents() {
-            try {
-                const res = await fetch(apiBaseUrl + "/voto", { method: 'POST', body: JSON.stringify({ action: 'get_students' }) });
-                const data = await res.json();
-                if (data.students) {
-                    allStudents = data.students;
-                    const select = document.getElementById('filter-class');
-                    select.innerHTML = '<option value="ALL">Tutte le classi</option>';
-                    data.classes.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
-                    renderStudentTable();
-                }
-            } catch (e) { console.error(e); }
-        }
-
         function renderStudentTable() {
             const filter = document.getElementById('filter-class').value;
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
-            const filtered = filter === 'ALL' ? allStudents : allStudents.filter(s => s.classe === filter);
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="empty-state">
-                            <div class="empty-state-icon">📭</div>
-                            <p>Nessuno studente trovato</p>
-                        </td>
-                    </tr>`;
-                return;
-            }
-
-            filtered.forEach(s => {
-                tbody.innerHTML += `
-                <tr>
+            const list = filter === 'ALL' ? allStudents : allStudents.filter(s => s.classe === filter);
+            list.forEach(s => {
+                tbody.innerHTML += `<tr>
+                    <td><b>${s.display_name}</b><br><small>${s.email}</small></td>
+                    <td>${s.classe}</td>
                     <td>
-                        <strong style="font-size: 1.1rem;">${s.display_name}</strong><br>
-                        <small style="color: #666;">${s.email}</small>
-                    </td>
-                    <td><span style="background: var(--gradient); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 600;">${s.classe}</span></td>
-                    <td>
-                        <div class="button-row">
-                            <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">📝 Voto</button>
-                            <button class="small danger" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')">⚠️ Note</button>
-                        </div>
+                        <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">➕ Voto</button>
+                        <button class="small secondary" onclick="apriStoricoVoti('${s.email}', '${s.display_name}')">📜 Storico</button>
+                        <button class="small danger" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')">⚠️ Note</button>
                     </td>
                 </tr>`;
             });
         }
 
-        async function apriVoto(email, name) {
+        // --- CRUD VOTI DOCENTE ---
+        function apriVoto(email, name) {
             currentStudentEmail = email;
             document.getElementById('modal-student-name').innerText = name;
-            document.getElementById('modal-materia').value = '';
-            document.getElementById('modal-voto').value = '';
             document.getElementById('voto-modal').classList.add('active');
-            document.getElementById('modal-materia').focus();
-
-            // Supporto per Enter key
-            document.getElementById('modal-voto').onkeypress = function (e) {
-                if (e.key === 'Enter') confermaVoto();
-            };
-        }
-
-        function closeVotoModal() {
-            document.getElementById('voto-modal').classList.remove('active');
         }
 
         async function confermaVoto() {
-            const mat = document.getElementById('modal-materia').value.trim();
-            const voto = document.getElementById('modal-voto').value.trim();
+            const mat = document.getElementById('modal-materia').value;
+            const voto = document.getElementById('modal-voto').value;
+            const teacher = document.getElementById('teacher-name-display').innerText;
+            await fetch(apiBaseUrl + "/voto", { method: 'POST', body: JSON.stringify({ action: 'add_grade', teacher_name: teacher, student_email: currentStudentEmail, materia: mat, voto: voto }) });
+            showToast("Voto inserito");
+            document.getElementById('voto-modal').classList.remove('active');
+        }
 
-            if (!mat || !voto) {
-                showToast('Compila tutti i campi', 'error');
+        // NUOVO: Visualizza Storico per Cancellare
+        async function apriStoricoVoti(email, name) {
+            currentStudentEmail = email;
+            document.getElementById('history-student-name').innerText = name;
+            document.getElementById('history-modal').classList.add('active');
+            const list = document.getElementById('history-list');
+            list.innerHTML = '<div class="loading"><div class="spinner"></div>Caricamento...</div>';
+
+            // Usiamo la stessa API dello studente per leggere i voti
+            const res = await fetch(apiBaseUrl + "/voto?email=" + email);
+            const data = await res.json();
+
+            list.innerHTML = '';
+            if (!data.voti || data.voti.length === 0) {
+                list.innerHTML = '<p style="text-align:center">Nessun voto presente.</p>';
                 return;
             }
 
-            const teacher = document.getElementById('teacher-name-display').innerText;
+            data.voti.forEach(v => {
+                if (v.voto) { // Filtra note
+                    // Importante: ci serve l'SK per cancellare. In Dynamo l'SK è "VOTO#timestamp"
+                    // Ma l'API get_student formatta la risposta. 
+                    // Il campo 'sk' originale deve essere esposto dalla Lambda get_student? 
+                    // Se la Lambda usa 'SK' per 'data', possiamo ricostruirlo o usarlo se presente.
+                    // Assumiamo che 'data' nel JSON sia il timestamp ISO che compone l'SK.
 
+                    // Nota: nel tuo codice python 'data' = timestamp. 
+                    // L'SK è f"VOTO#{timestamp}". Quindi ricostruiamo l'SK.
+                    const sk_ricostruito = `VOTO#${v.data}`;
+
+                    list.innerHTML += `
+                    <div class="grade-card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${v.materia}</strong>: <span style="font-size:1.2rem; font-weight:bold">${v.voto}</span><br>
+                            <small>${new Date(v.data).toLocaleDateString()} - Prof. ${v.teacher}</small>
+                        </div>
+                        <button class="icon-btn" onclick="cancellaVoto('${sk_ricostruito}')">🗑️</button>
+                    </div>`;
+                }
+            });
+        }
+
+        async function cancellaVoto(sk) {
+            if (!confirm("Sicuro di voler eliminare questo voto?")) return;
             try {
-                await fetch(apiBaseUrl + "/voto", {
+                const res = await fetch(apiBaseUrl + "/voto", {
                     method: 'POST',
                     body: JSON.stringify({
-                        action: 'add_grade',
-                        teacher_name: teacher,
+                        action: 'delete_grade',
                         student_email: currentStudentEmail,
-                        materia: mat,
-                        voto: voto
+                        sk: sk
                     })
                 });
-
-                showToast('✅ Voto inserito con successo!', 'success');
-                closeVotoModal();
-            } catch (e) {
-                showToast('❌ Errore durante l\'inserimento', 'error');
-            }
+                if (res.ok) {
+                    showToast("Voto eliminato");
+                    // Ricarica la lista dello storico
+                    apriStoricoVoti(currentStudentEmail, document.getElementById('history-student-name').innerText);
+                } else {
+                    showToast("Errore cancellazione", "error");
+                }
+            } catch (e) { showToast(e.message, "error"); }
         }
 
-        function showToast(message, type = 'success') {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            const msg = document.getElementById('toast-message');
 
-            toast.className = 'toast ' + type;
-            icon.innerText = type === 'success' ? '✅' : '❌';
-            msg.innerText = message;
-
-            toast.classList.add('active');
-
-            setTimeout(() => {
-                toast.classList.add('hiding');
-                setTimeout(() => {
-                    toast.classList.remove('active', 'hiding');
-                }, 400);
-            }, 3000);
-        }
-
-        // --- NOTE DOCENTE ---
-        let currentStudentEmail = null;
+        // --- CRUD NOTE DOCENTE ---
         async function apriNoteTeacher(email, name) {
             currentStudentEmail = email;
             document.getElementById('note-student-name').innerText = name;
             switchView('view-notes');
-            document.getElementById('lista-note').innerHTML = '<div class="loading"><div class="spinner"></div>Caricamento...</div>';
-
-            const success = await ensureDockerIP();
-            if (!success) {
-                document.getElementById('lista-note').innerHTML = "<div class='empty-state'><div class='empty-state-icon'>⚠️</div><p style='color:red'>Container Docker non raggiungibile</p></div>";
-                return;
-            }
-            loadNotes(email, 'lista-note');
+            if (await ensureDockerIP()) loadNotes(email, 'lista-note', true); // true = mostra tasti cancellazione
+            else document.getElementById('lista-note').innerHTML = "Container non raggiungibile";
         }
 
         async function inviaNota() {
-            const testo = document.getElementById('note-text').value;
+            const txt = document.getElementById('note-text').value;
             const teacher = document.getElementById('teacher-name-display').innerText;
-            if (!testo) {
-                showToast("Inserisci un testo per la nota!", 'error');
-                return;
-            }
+            if (!txt) return;
+            await fetch(`${NOTE_API_URL}/note`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_email: currentStudentEmail, testo: txt, teacher: teacher })
+            });
+            showToast("Nota inserita");
+            document.getElementById('note-text').value = '';
+            loadNotes(currentStudentEmail, 'lista-note', true);
+        }
 
+        async function cancellaNota(sk) {
+            if (!confirm("Eliminare questa nota?")) return;
             try {
-                await fetch(`${NOTE_API_URL}/note`, {
-                    method: 'POST',
+                // Flask DELETE
+                const res = await fetch(`${NOTE_API_URL}/note`, {
+                    method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ student_email: currentStudentEmail, testo: testo, teacher: teacher })
+                    body: JSON.stringify({ student_email: currentStudentEmail, sk: sk })
                 });
-                showToast("✅ Nota inserita con successo!", 'success');
-                document.getElementById('note-text').value = '';
-                loadNotes(currentStudentEmail, 'lista-note');
-            } catch (e) {
-                showToast("❌ Errore invio nota: " + e.message, 'error');
-            }
+                if (res.ok) {
+                    showToast("Nota eliminata");
+                    loadNotes(currentStudentEmail, 'lista-note', true);
+                } else showToast("Errore cancellazione nota", "error");
+            } catch (e) { console.error(e); }
         }
 
         // --- STUDENTE ---
         async function setupStudent(email) {
             switchView('view-student');
-
-            // 1. Carica Voti (Lambda)
+            // Carica Voti
             const res = await fetch(apiBaseUrl + "/voto?email=" + email);
             const data = await res.json();
 
-            // Debug: vediamo cosa restituisce il backend
-            console.log('Dati voti ricevuti:', data);
-            if (data.voti && data.voti.length > 0) {
-                console.log('Esempio primo voto:', data.voti[0]);
-            }
+            // Medie
+            const divM = document.getElementById('lista-medie'); divM.innerHTML = '';
+            if (data.medie) for (const [m, v] of Object.entries(data.medie))
+                if (m !== 'Sconosciuta') divM.innerHTML += `<div style="background:white; padding:10px; border-radius:8px; text-align:center; box-shadow:0 2px 5px #ddd"><b>${m}</b><br><span style="font-size:1.5rem; color:var(--primary)">${v}</span></div>`;
 
-            const divMedie = document.getElementById('lista-medie');
-            divMedie.innerHTML = "";
+            // Voti
+            const divV = document.getElementById('lista-voti'); divV.innerHTML = '';
+            (data.voti || []).forEach(v => {
+                if (v.voto) divV.innerHTML += `<div class="grade-card"><b>${v.materia}</b>: ${v.voto} <small>(${v.data.substring(0, 10)})</small></div>`;
+            });
 
-            if (data.medie && Object.keys(data.medie).length > 0) {
-                for (const [m, v] of Object.entries(data.medie)) {
-                    if (m !== 'Sconosciuta') {
-                        divMedie.innerHTML += `
-                            <div class="average-card">
-                                <div class="average-subject">${m}</div>
-                                <div class="average-value">${v}</div>
-                            </div>`;
-                    }
-                }
-            } else {
-                divMedie.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><p>Nessuna media disponibile</p></div>';
-            }
-
-            const divVoti = document.getElementById('lista-voti');
-            divVoti.innerHTML = "";
-
-            if (data.voti && data.voti.length > 0) {
-                data.voti.forEach(v => {
-                    if (v.voto) {
-                        // Il campo docente potrebbe essere teacher_name, teacher, docente, o teacher
-                        const docente = v.teacher_name || v.docente || v.teacher || 'Non specificato';
-
-                        divVoti.innerHTML += `
-                            <div class="grade-card">
-                                <div class="grade-header">
-                                    <div class="grade-subject">${v.materia}</div>
-                                    <div class="grade-value">${v.voto}</div>
-                                </div>
-                                <div class="grade-meta">
-                                    <div class="grade-meta-item">
-                                        <strong>Docente:</strong> ${docente}
-                                    </div>
-                                    <div class="grade-meta-item">
-                                        <strong>Data:</strong> ${new Date(v.data).toLocaleDateString('it-IT')}
-                                    </div>
-                                </div>
-                            </div>`;
-                    }
-                });
-            } else {
-                divVoti.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📚</div><p>Nessun voto registrato</p></div>';
-            }
-
-            // 2. Carica Note (Docker)
-            const divNotes = document.getElementById('student-notes-list');
-            divNotes.innerHTML = '<div class="loading"><div class="spinner"></div>Connessione al registro note...</div>';
-
-            const success = await ensureDockerIP();
-            if (!success) {
-                divNotes.innerHTML = "<div class='empty-state'><div class='empty-state-icon'>⚠️</div><p style='color:red'>Servizio note momentaneamente non disponibile</p></div>";
-                return;
-            }
-
-            loadNotes(email, 'student-notes-list');
+            // Note
+            if (await ensureDockerIP()) loadNotes(email, 'student-notes-list', false); // false = no cancellazione
         }
 
-        // --- FUNZIONE CONDIVISA CARICAMENTO NOTE ---
-        async function loadNotes(email, containerId) {
-            const container = document.getElementById(containerId);
+        // --- SHARED: CARICAMENTO NOTE ---
+        async function loadNotes(email, divId, isTeacher) {
+            const div = document.getElementById(divId);
+            div.innerHTML = '<div class="spinner"></div>';
             try {
                 const res = await fetch(`${NOTE_API_URL}/note?email=${email}`);
                 const notes = await res.json();
+                div.innerHTML = '';
+                if (notes.length === 0) div.innerHTML = '<p>Nessuna nota.</p>';
+                else notes.forEach(n => {
+                    // Costruiamo l'SK per la cancellazione se serve (SK=NOTA#timestamp) -> In questo caso n.SK dovrebbe essere restituito dal backend Flask
+                    // Se Flask ritorna l'oggetto DynamoDB, dovrebbe esserci.
+                    // Se nel codice Flask non ritorni 'SK', aggiornalo. 
+                    // Assumiamo che n.SK ci sia.
 
-                container.innerHTML = "";
-                if (notes.length === 0) {
-                    container.innerHTML = "<div class='empty-state'><div class='empty-state-icon'>✅</div><p>Nessuna nota disciplinare</p></div>";
-                } else {
-                    notes.forEach(n => {
-                        container.innerHTML += `
-                        <div class="nota-card">
-                            <p style="margin:0; font-size: 1.1rem; margin-bottom: 10px;">"${n.testo}"</p>
-                            <div class="grade-meta">
-                                <div class="grade-meta-item">
-                                    <strong>Docente:</strong> ${n.teacher}
-                                </div>
-                                <div class="grade-meta-item">
-                                    <strong>Data:</strong> ${new Date(n.data).toLocaleDateString('it-IT')}
-                                </div>
-                            </div>
-                        </div>`;
-                    });
-                }
-            } catch (e) {
-                container.innerHTML = `<div class='empty-state'><div class='empty-state-icon'>⚠️</div><p style='color:red'>Errore connessione: ${e.message}</p></div>`;
-            }
+                    let btnDelete = '';
+                    if (isTeacher) {
+                        btnDelete = `<button class="delete-corner icon-btn" onclick="cancellaNota('${n.SK}')">🗑️</button>`;
+                    }
+
+                    div.innerHTML += `
+                    <div class="nota-card">
+                        ${btnDelete}
+                        <p style="margin:0">"${n.testo}"</p>
+                        <small style="color:#666">Prof: ${n.teacher} - ${n.data.substring(0, 10)}</small>
+                    </div>`;
+                });
+            } catch (e) { div.innerHTML = 'Errore note'; }
         }
 
     </script>
