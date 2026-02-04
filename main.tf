@@ -369,7 +369,7 @@ resource "aws_iam_role_policy" "ecs_dynamo_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"]
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan","dynamodb:DeleteItem"]
         Effect   = "Allow"
         Resource = "*"
       }
