@@ -1165,6 +1165,12 @@
             const res = await fetch(apiBaseUrl + "/voto?email=" + email);
             const data = await res.json();
 
+            // Debug: vediamo cosa restituisce il backend
+            console.log('Dati voti ricevuti:', data);
+            if (data.voti && data.voti.length > 0) {
+                console.log('Esempio primo voto:', data.voti[0]);
+            }
+
             const divMedie = document.getElementById('lista-medie');
             divMedie.innerHTML = "";
 
@@ -1188,6 +1194,9 @@
             if (data.voti && data.voti.length > 0) {
                 data.voti.forEach(v => {
                     if (v.voto) {
+                        // Il campo docente potrebbe essere teacher_name, teacher, docente, o teacher
+                        const docente = v.teacher_name || v.docente || v.teacher || 'Non specificato';
+
                         divVoti.innerHTML += `
                             <div class="grade-card">
                                 <div class="grade-header">
@@ -1196,7 +1205,7 @@
                                 </div>
                                 <div class="grade-meta">
                                     <div class="grade-meta-item">
-                                        <strong>Docente:</strong> ${v.docente || 'Non specificato'}
+                                        <strong>Docente:</strong> ${docente}
                                     </div>
                                     <div class="grade-meta-item">
                                         <strong>Data:</strong> ${new Date(v.data).toLocaleDateString('it-IT')}
