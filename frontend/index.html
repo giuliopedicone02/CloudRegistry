@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro Cloud Pro</title>
+    <title>Cloud Registry</title>
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
     <script src="https://unpkg.com/amazon-cognito-identity-js@5.2.9/dist/amazon-cognito-identity.min.js"></script>
     <style>
@@ -518,18 +518,206 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Modal per inserimento voto */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s ease-out;
+            position: relative;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            padding: 0;
+            border: none;
+            color: var(--dark);
+            font-size: 1.8rem;
+        }
+
+        .modal-header .student-name {
+            color: #e63946;
+            font-weight: 700;
+            display: block;
+            margin-top: 0.5rem;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: #999;
+            cursor: pointer;
+            width: auto;
+            padding: 0;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #e63946;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .form-group input,
+        .form-group select {
+            margin: 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 2rem;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            margin: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            z-index: 2000;
+            animation: slideInRight 0.4s ease-out;
+            max-width: 400px;
+        }
+
+        .toast.active {
+            display: flex;
+        }
+
+        .toast.success {
+            border-left: 5px solid #2a9d8f;
+        }
+
+        .toast.error {
+            border-left: 5px solid #e63946;
+        }
+
+        .toast-icon {
+            font-size: 2rem;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.hiding {
+            animation: slideOutRight 0.4s ease-out forwards;
+        }
+
+        @media (max-width: 768px) {
+            .toast {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
+        }
     </style>
 </head>
 
 <body>
 
     <div class="container">
-        <h1>☁️ Registro Cloud Pro</h1>
+        <h1>☁️ Cloud Registry</h1>
 
         <div id="view-login" class="box visible">
-            <h2>🔐 Accedi al tuo account</h2>
-            <input type="text" id="login-user" placeholder="Email">
-            <input type="password" id="login-pass" placeholder="Password">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">☁️</div>
+                <h2 style="margin: 0; font-size: 2.2rem;">Benvenuto su Cloud Registry</h2>
+                <p style="color: #666; margin-top: 0.5rem;">Accedi al tuo registro elettronico</p>
+            </div>
+            <input type="text" id="login-user" placeholder="📧 Email">
+            <input type="password" id="login-pass" placeholder="🔒 Password">
             <button onclick="login()">Accedi</button>
             <button class="secondary" onclick="switchView('view-register')">Crea nuovo account</button>
         </div>
@@ -653,6 +841,35 @@
         </div>
     </div>
 
+    <!-- Modal per inserimento voto -->
+    <div id="voto-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeVotoModal()">×</button>
+            <div class="modal-header">
+                <h3>📝 Inserisci Voto</h3>
+                <span class="student-name" id="modal-student-name"></span>
+            </div>
+            <div class="form-group">
+                <label for="modal-materia">Materia</label>
+                <input type="text" id="modal-materia" placeholder="Es: Matematica, Storia...">
+            </div>
+            <div class="form-group">
+                <label for="modal-voto">Voto</label>
+                <input type="text" id="modal-voto" placeholder="Es: 8, 7.5, Sufficiente...">
+            </div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="closeVotoModal()">Annulla</button>
+                <button onclick="confermaVoto()">Conferma Voto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <div class="toast-icon" id="toast-icon"></div>
+        <div class="toast-message" id="toast-message"></div>
+    </div>
+
     <script src="config.js"></script>
 
     <script>
@@ -696,10 +913,13 @@
             ];
 
             userPool.signUp(email, pass, attributeList, null, (err, result) => {
-                if (err) { alert(err.message || JSON.stringify(err)); return; }
-                alert('Codice inviato! Controlla la mail.');
+                if (err) {
+                    showToast(err.message || 'Errore durante la registrazione', 'error');
+                    return;
+                }
+                showToast('Codice inviato! Controlla la mail', 'success');
                 document.getElementById('verify-email').value = email;
-                switchView('view-verify');
+                setTimeout(() => switchView('view-verify'), 1000);
             });
         }
 
@@ -709,9 +929,12 @@
             const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
 
             cognitoUser.confirmRegistration(code, true, (err, result) => {
-                if (err) return alert("Errore: " + err.message);
-                alert("Account verificato! Fai login.");
-                switchView('view-login');
+                if (err) {
+                    showToast("Errore: " + err.message, 'error');
+                    return;
+                }
+                showToast("Account verificato! Puoi fare login", 'success');
+                setTimeout(() => switchView('view-login'), 1000);
             });
         }
 
@@ -741,7 +964,7 @@
                         }
                     });
                 },
-                onFailure: (err) => alert("Errore Login: " + err.message)
+                onFailure: (err) => showToast("Errore Login: " + err.message, 'error')
             });
         }
 
@@ -830,17 +1053,70 @@
         }
 
         async function apriVoto(email, name) {
-            const mat = prompt("Inserisci la materia:");
-            if (!mat) return;
-            const voto = prompt("Inserisci il voto:");
-            if (!voto) return;
+            currentStudentEmail = email;
+            document.getElementById('modal-student-name').innerText = name;
+            document.getElementById('modal-materia').value = '';
+            document.getElementById('modal-voto').value = '';
+            document.getElementById('voto-modal').classList.add('active');
+            document.getElementById('modal-materia').focus();
+
+            // Supporto per Enter key
+            document.getElementById('modal-voto').onkeypress = function (e) {
+                if (e.key === 'Enter') confermaVoto();
+            };
+        }
+
+        function closeVotoModal() {
+            document.getElementById('voto-modal').classList.remove('active');
+        }
+
+        async function confermaVoto() {
+            const mat = document.getElementById('modal-materia').value.trim();
+            const voto = document.getElementById('modal-voto').value.trim();
+
+            if (!mat || !voto) {
+                showToast('Compila tutti i campi', 'error');
+                return;
+            }
+
             const teacher = document.getElementById('teacher-name-display').innerText;
 
-            await fetch(apiBaseUrl + "/voto", {
-                method: 'POST',
-                body: JSON.stringify({ action: 'add_grade', teacher_name: teacher, student_email: email, materia: mat, voto: voto })
-            });
-            alert("✅ Voto inserito con successo!");
+            try {
+                await fetch(apiBaseUrl + "/voto", {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'add_grade',
+                        teacher_name: teacher,
+                        student_email: currentStudentEmail,
+                        materia: mat,
+                        voto: voto
+                    })
+                });
+
+                showToast('✅ Voto inserito con successo!', 'success');
+                closeVotoModal();
+            } catch (e) {
+                showToast('❌ Errore durante l\'inserimento', 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+
+            toast.className = 'toast ' + type;
+            icon.innerText = type === 'success' ? '✅' : '❌';
+            msg.innerText = message;
+
+            toast.classList.add('active');
+
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => {
+                    toast.classList.remove('active', 'hiding');
+                }, 400);
+            }, 3000);
         }
 
         // --- NOTE DOCENTE ---
@@ -862,7 +1138,10 @@
         async function inviaNota() {
             const testo = document.getElementById('note-text').value;
             const teacher = document.getElementById('teacher-name-display').innerText;
-            if (!testo) return alert("Inserisci un testo per la nota!");
+            if (!testo) {
+                showToast("Inserisci un testo per la nota!", 'error');
+                return;
+            }
 
             try {
                 await fetch(`${NOTE_API_URL}/note`, {
@@ -870,10 +1149,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ student_email: currentStudentEmail, testo: testo, teacher: teacher })
                 });
-                alert("✅ Nota inserita con successo!");
+                showToast("✅ Nota inserita con successo!", 'success');
                 document.getElementById('note-text').value = '';
                 loadNotes(currentStudentEmail, 'lista-note');
-            } catch (e) { alert("❌ Errore invio nota: " + e.message); }
+            } catch (e) {
+                showToast("❌ Errore invio nota: " + e.message, 'error');
+            }
         }
 
         // --- STUDENTE ---
