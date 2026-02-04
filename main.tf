@@ -109,7 +109,7 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:delete_item"]
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:DeleteItem"]
         Effect   = "Allow"
         Resource = "*"
       },
