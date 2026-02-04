@@ -447,9 +447,14 @@
 
             const divMedie = document.getElementById('lista-medie');
             divMedie.innerHTML = "";
+
             if (data.medie) {
-                for (const [m, v] of Object.entries(data.medie))
-                    divMedie.innerHTML += `<p><b>${m}</b>: <span class="media-badge">${v}</span></p>`;
+                for (const [m, v] of Object.entries(data.medie)) {
+                    // MODIFICA: Mostra la media SOLO se la materia NON è "Sconosciuta"
+                    if (m !== 'Sconosciuta') {
+                        divMedie.innerHTML += `<p><b>${m}</b>: <span class="media-badge">${v}</span></p>`;
+                    }
+                }
             }
 
             const divVoti = document.getElementById('lista-voti');
