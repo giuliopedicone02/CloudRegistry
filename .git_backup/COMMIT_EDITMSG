@@ -1,0 +1,1 @@
+Migliora il caricamento del profilo utente: aggiungi log per il debug, gestisci errori e aggiorna l'interfaccia utente in base al ruolo.
