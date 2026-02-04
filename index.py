@@ -7,23 +7,18 @@ from boto3.dynamodb.conditions import Key
 
 # --- INIZIALIZZAZIONE SERVIZI ---
 dynamodb = boto3.resource('dynamodb')
-ses = boto3.client('ses')    # ✅ Usiamo SES (Postino) per mail dirette
+ses = boto3.client('ses')
 cognito = boto3.client('cognito-idp')
-
-# ... altri import ...
-# AGGIUNGI QUESTI CLIENT:
 ecs = boto3.client('ecs')
 ec2 = boto3.client('ec2')
-
-# NOME DEL TUO CLUSTER (Deve essere uguale a quello in main.tf)
-CLUSTER_NAME = "registro-cloud-cluster"
 
 # --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
+CLUSTER_NAME = "registro-cloud-cluster" # Assicurati che coincida col nome in main.tf
 
-# ⚠️ SOSTITUISCI CON LA TUA MAIL VERIFICATA SU SES
-SENDER_EMAIL = "pdcgli02e11c351e@studium.unict.it" 
+# SOSTITUISCI CON LA TUA MAIL VERIFICATA SU SES
+SENDER_EMAIL = "pediconegiulio02@gmail.com" 
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))
@@ -58,24 +53,26 @@ def gestisci_scrittura(event, headers):
     
     action = body.get('action')
 
-    # --- AZIONE SPECIALE: TROVA IP DOCKER ---
-    # --- AZIONE SPECIALE: TROVA IP DOCKER ---
+    # --- AZIONE 1: TROVA IP DOCKER (Corretta) ---
     if action == 'get_container_ip':
         try:
-            # 1. CORREZIONE: Parametri in minuscolo (cluster, desiredStatus)
+            # 1. Trova i task (parametri in MINUSCOLO)
             tasks = ecs.list_tasks(cluster=CLUSTER_NAME, desiredStatus='RUNNING')
             task_arns = tasks.get('taskArns', [])
 
             if not task_arns:
-                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Container spento'})}
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Nessun container acceso trovato'})}
 
-            # 2. CORREZIONE: Parametri in minuscolo (cluster, tasks)
+            # 2. Descrivi il task (parametri in MINUSCOLO)
             desc = ecs.describe_tasks(cluster=CLUSTER_NAME, tasks=[task_arns[0]])
+            
+            if not desc['tasks']:
+                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Impossibile descrivere il task'})}
+                 
             task_details = desc['tasks'][0]
 
-            # 3. Cerchiamo l'interfaccia di rete (ENI)
+            # 3. Trova interfaccia di rete (ENI)
             eni_id = None
-            # Assicuriamoci che ci siano allegati
             if 'attachments' in task_details and len(task_details['attachments']) > 0:
                 for detail in task_details['attachments'][0]['details']:
                     if detail['name'] == 'networkInterfaceId':
@@ -83,25 +80,20 @@ def gestisci_scrittura(event, headers):
                         break
             
             if not eni_id:
-                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': "Interfaccia di rete non trovata nel task"})}
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'ENI non trovata'})}
 
-            # 4. Chiediamo a EC2 qual è l'IP pubblico (Qui invece EC2 vuole le maiuscole... che confusione!)
+            # 4. Trova IP Pubblico (EC2 vuole maiuscole qui...)
             net_info = ec2.describe_network_interfaces(NetworkInterfaceIds=[eni_id])
-            
-            # Controllo di sicurezza se non c'è IP pubblico
-            if 'NetworkInterfaces' in net_info and len(net_info['NetworkInterfaces']) > 0:
-                public_ip = net_info['NetworkInterfaces'][0].get('Association', {}).get('PublicIp')
-                if public_ip:
-                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': public_ip})}
-            
-            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Nessun IP Pubblico assegnato'})}
+            public_ip = net_info['NetworkInterfaces'][0].get('Association', {}).get('PublicIp')
+
+            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': public_ip})}
 
         except Exception as e:
             print("Errore ricerca IP:", str(e))
-            traceback.print_exc() # Utile per vedere l'errore nei log
+            traceback.print_exc()
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
-        
-    # --- 1. SCARICA LISTA STUDENTI ---
+
+    # --- AZIONE 2: GET STUDENTS ---
     if action == 'get_students':
         try:
             response = cognito.list_users(UserPoolId=USER_POOL_ID)
@@ -134,14 +126,13 @@ def gestisci_scrittura(event, headers):
         except Exception as e:
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
 
-    # --- 2. AGGIUNGI VOTO E INVIA MAIL ---
+    # --- AZIONE 3: ADD GRADE ---
     if action == 'add_grade':
         student_email = body.get('student_email')
         materia = body.get('materia')
         voto_raw = body.get('voto')
         teacher_name = body.get('teacher_name', 'Docente')
 
-        # A. Salva nel Database
         table = dynamodb.Table(TABLE_NAME)
         timestamp = datetime.datetime.now().isoformat()
         
@@ -155,36 +146,16 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
-        # B. Invia Email con SES (Diretta allo studente)
         try:
-            subject = f"Nuovo Voto in {materia} - Registro Cloud"
-            messaggio = (
-                f"Ciao,\n\n"
-                f"È stato inserito un nuovo voto sul tuo Registro Cloud.\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"📚 Materia: {materia}\n"
-                f"📊 Voto: {voto_raw}\n"
-                f"👨‍🏫 Docente: {teacher_name}\n"
-                f"📅 Data: {timestamp[:10]}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"Accedi al portale per vedere la tua media aggiornata."
-            )
-
+            subject = f"Nuovo Voto in {materia}"
+            messaggio = f"Ciao, nuovo voto: {voto_raw} in {materia}."
             ses.send_email(
                 Source=SENDER_EMAIL,
-                Destination={
-                    'ToAddresses': [student_email] # ✅ Manda SOLO a lui!
-                },
-                Message={
-                    'Subject': {'Data': subject},
-                    'Body': {'Text': {'Data': messaggio}}
-                }
+                Destination={'ToAddresses': [student_email]},
+                Message={'Subject': {'Data': subject}, 'Body': {'Text': {'Data': messaggio}}}
             )
-            print(f"✅ Email SES inviata con successo a {student_email}")
-            
-        except Exception as mail_error:
-            print(f"❌ Errore invio Email SES: {mail_error}")
-            traceback.print_exc()
+        except Exception as e:
+            print(f"Errore mail: {e}")
 
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
 
