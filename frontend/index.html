@@ -455,7 +455,11 @@
             const divVoti = document.getElementById('lista-voti');
             divVoti.innerHTML = "";
             (data.voti || []).forEach(v => {
-                divVoti.innerHTML += `<div class="voto-card"><strong>${v.materia}</strong>: ${v.voto} <br><small>${v.data.substring(0, 10)}</small></div>`;
+                // CORREZIONE: Controlla se il campo 'voto' esiste. 
+                // Se è una Nota, v.voto sarà undefined e la riga verrà saltata.
+                if (v.voto) {
+                    divVoti.innerHTML += `<div class="voto-card"><strong>${v.materia}</strong>: ${v.voto} <br><small>${v.data.substring(0, 10)}</small></div>`;
+                }
             });
 
             // 2. Carica Note (Docker)
