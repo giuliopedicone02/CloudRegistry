@@ -102,6 +102,14 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
 
+        .nota-card {
+            border-left: 5px solid #d63384;
+            padding: 15px;
+            margin: 10px 0;
+            background: #fff0f6;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
         .media-badge {
             float: right;
             background: #0073bb;
@@ -139,10 +147,10 @@
 
     <div id="view-register" class="box">
         <h2>📝 Nuova Registrazione</h2>
-        <input type="text" id="reg-name" placeholder="Nome (es. Mario)">
-        <input type="text" id="reg-surname" placeholder="Cognome (es. Rossi)">
+        <input type="text" id="reg-name" placeholder="Nome">
+        <input type="text" id="reg-surname" placeholder="Cognome">
         <input type="text" id="reg-email" placeholder="Email">
-        <input type="password" id="reg-pass" placeholder="Password (es. Password123!)">
+        <input type="password" id="reg-pass" placeholder="Password">
         <select id="reg-role" onchange="toggleClasseInput()">
             <option value="Student">Studente</option>
             <option value="Teacher">Docente</option>
@@ -154,12 +162,9 @@
 
     <div id="view-verify" class="box">
         <h2>📩 Verifica Email</h2>
-        <p>Abbiamo inviato un codice alla tua email. Inseriscilo qui sotto.</p>
-
+        <p>Inserisci il codice ricevuto via mail.</p>
         <input type="text" id="verify-email" placeholder="La tua email" readonly style="background:#eee">
-
-        <input type="text" id="verify-code" placeholder="Codice (es. 123456)">
-
+        <input type="text" id="verify-code" placeholder="Codice OTP">
         <button onclick="confirmVerification()">Conferma Account</button>
         <button class="secondary" onclick="switchView('view-login')">Torna al Login</button>
     </div>
@@ -169,25 +174,22 @@
             <h2>👨‍🏫 Prof. <span id="teacher-name-display"></span></h2>
             <button class="secondary small" onclick="logout()">Esci</button>
         </div>
-
         <div class="filter-bar">
-            <strong>Filtra per Classe:</strong>
+            <strong>Classe:</strong>
             <select id="filter-class" onchange="renderStudentTable()" style="width: auto; flex-grow:1">
-                <option value="ALL">Caricamento classi...</option>
+                <option value="ALL">Caricamento...</option>
             </select>
             <button class="small" onclick="loadStudents()">🔄 Aggiorna</button>
         </div>
-
         <table>
             <thead>
                 <tr>
-                    <th>Studente (Cognome Nome)</th>
+                    <th>Studente</th>
                     <th>Classe</th>
                     <th>Azione</th>
                 </tr>
             </thead>
-            <tbody id="student-table-body">
-            </tbody>
+            <tbody id="student-table-body"></tbody>
         </table>
     </div>
 
@@ -196,11 +198,19 @@
             <h2>🎓 Ciao, <span id="student-name-display"></span></h2>
             <button class="secondary small" onclick="logout()">Esci</button>
         </div>
-        <p>Ecco la tua situazione scolastica:</p>
+
+        <p>La tua situazione scolastica:</p>
         <div id="lista-medie" style="margin-bottom: 20px;"></div>
+
         <hr>
-        <h3>Storico Voti</h3>
+        <h3>📊 Voti</h3>
         <div id="lista-voti"></div>
+
+        <hr>
+        <h3>⚠️ Note Disciplinari</h3>
+        <div id="student-notes-list">
+            <small>Caricamento note...</small>
+        </div>
     </div>
 
     <div id="view-notes" class="box">
@@ -208,41 +218,33 @@
             <h2>⚠️ Note: <span id="note-student-name"></span></h2>
             <button class="secondary small" onclick="switchView('view-teacher')">Chiudi</button>
         </div>
-
         <div style="background:#fff3cd; padding:10px; border-radius:5px; margin:10px 0; border:1px solid #ffeeba;">
-            <small>Questa sezione è gestita dal Microservizio <b>Docker/Fargate</b>.</small>
+            <small>Gestito dal Microservizio <b>Docker/Fargate</b>.</small>
         </div>
-
         <div id="lista-note" style="margin-bottom:20px; max-height:200px; overflow-y:auto;">
             <p>Caricamento...</p>
         </div>
-
         <hr>
         <h3>Aggiungi Nota</h3>
-        <textarea id="note-text" rows="3" placeholder="Scrivi qui il motivo della nota..."
+        <textarea id="note-text" rows="3" placeholder="Motivo della nota..."
             style="width:100%; padding:10px;"></textarea>
-        <button onclick="inviaNota()" style="background:#d63384;">Invia Nota Disciplinare</button>
+        <button onclick="inviaNota()" style="background:#d63384;">Invia Nota</button>
     </div>
 
     <script src="config.js"></script>
 
     <script>
+        if (typeof window.apiConfig === 'undefined') alert("Errore: config.js mancante.");
 
-        if (typeof window.apiConfig === 'undefined') {
-            alert("Errore: config.js non caricato. Controlla il deploy Terraform.");
-        }
-
-        // Usiamo le variabili globali caricate da config.js
-        const poolData = {
-            UserPoolId: window.apiConfig.UserPoolId,
-            ClientId: window.apiConfig.ClientId
-        };
+        const poolData = { UserPoolId: window.apiConfig.UserPoolId, ClientId: window.apiConfig.ClientId };
         const apiBaseUrl = window.apiConfig.ApiUrl;
-
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
         let currentUser;
-        let userData = {}; // Contiene nome, cognome, ruolo
+        let userData = {};
         let allStudents = [];
+
+        // --- VARIABILE GLOBALE PER L'IP DEL DOCKER ---
+        let NOTE_API_URL = null;
 
         function switchView(viewId) {
             document.querySelectorAll('.box').forEach(el => el.classList.remove('visible'));
@@ -252,8 +254,7 @@
         function toggleClasseInput() {
             const role = document.getElementById('reg-role').value;
             const classInput = document.getElementById('reg-class');
-            if (role === 'Teacher') classInput.style.display = 'none';
-            else classInput.style.display = 'block';
+            classInput.style.display = (role === 'Teacher') ? 'none' : 'block';
         }
 
         // --- AUTH ---
@@ -264,7 +265,6 @@
             const pass = document.getElementById('reg-pass').value;
             const role = document.getElementById('reg-role').value;
             let classe = document.getElementById('reg-class').value.toUpperCase();
-
             if (role === 'Teacher') classe = 'N/A';
 
             const attributeList = [
@@ -277,14 +277,8 @@
 
             userPool.signUp(email, pass, attributeList, null, (err, result) => {
                 if (err) { alert(err.message || JSON.stringify(err)); return; }
-
-                // --- NOVITÀ: Invece di alert, andiamo alla verifica ---
                 alert('Codice inviato! Controlla la mail.');
-
-                // Pre-compiliamo il campo email nella schermata di verifica
                 document.getElementById('verify-email').value = email;
-
-                // Mostriamo la schermata di verifica
                 switchView('view-verify');
             });
         }
@@ -292,19 +286,11 @@
         function confirmVerification() {
             const email = document.getElementById('verify-email').value;
             const code = document.getElementById('verify-code').value;
-
-            // Creiamo un oggetto utente temporaneo per la verifica
-            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
-                Username: email,
-                Pool: userPool
-            });
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
 
             cognitoUser.confirmRegistration(code, true, (err, result) => {
-                if (err) {
-                    alert("Errore verifica: " + (err.message || JSON.stringify(err)));
-                    return;
-                }
-                alert("✅ Account verificato con successo! Ora puoi fare il login.");
+                if (err) return alert("Errore: " + err.message);
+                alert("Account verificato! Fai login.");
                 switchView('view-login');
             });
         }
@@ -319,11 +305,9 @@
                     currentUser = cognitoUser;
                     currentUser.getUserAttributes((err, attrs) => {
                         if (err) return;
-                        // Estrai attributi
                         userData = {};
                         attrs.forEach(a => { userData[a.getName()] = a.getValue(); });
-
-                        const fullName = `${userData['given_name'] || ''} ${userData['family_name'] || ''}`.trim() || email;
+                        const fullName = `${userData['given_name']} ${userData['family_name']}`;
                         const role = userData['custom:role'] || 'Student';
 
                         if (role === 'Teacher') {
@@ -335,17 +319,41 @@
                         }
                     });
                 },
-                onFailure: (err) => alert("Errore Login: " + err.message),
-                newPasswordRequired: (attrs) => {
-                    const newPw = prompt("Primo accesso. Nuova password:");
-                    if (newPw) cognitoUser.completeNewPasswordChallenge(newPw, {}, { onSuccess: () => login() });
-                }
+                onFailure: (err) => alert("Errore Login: " + err.message)
             });
         }
 
         function logout() { if (currentUser) currentUser.signOut(); location.reload(); }
 
-        // --- LOGICA DOCENTE ---
+        // --- FUNZIONE HELPER: TROVA IP DOCKER ---
+        async function ensureDockerIP() {
+            if (NOTE_API_URL) return true; // Ce l'abbiamo già
+
+            try {
+                console.log("Richiedo IP Container alla Lambda...");
+                const res = await fetch(apiBaseUrl + "/voto", {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'get_container_ip' })
+                });
+
+                if (!res.ok) throw new Error("Errore Lambda");
+                const data = await res.json();
+
+                if (data.ip) {
+                    NOTE_API_URL = "http://" + data.ip;
+                    console.log("✅ IP Docker trovato:", NOTE_API_URL);
+                    return true;
+                } else {
+                    console.error("IP Null:", data.error);
+                    return false;
+                }
+            } catch (e) {
+                console.error("Errore infrastruttura:", e);
+                return false;
+            }
+        }
+
+        // --- DOCENTE ---
         async function setupTeacher() {
             switchView('view-teacher');
             await loadStudents();
@@ -353,212 +361,139 @@
 
         async function loadStudents() {
             try {
-                const res = await fetch(apiBaseUrl + "/voto", {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'get_students' })
-                });
+                const res = await fetch(apiBaseUrl + "/voto", { method: 'POST', body: JSON.stringify({ action: 'get_students' }) });
                 const data = await res.json();
-
-                if (data.students && data.classes) {
+                if (data.students) {
                     allStudents = data.students;
-                    populateClassFilter(data.classes); // Popola menu a tendina
+                    const select = document.getElementById('filter-class');
+                    select.innerHTML = '<option value="ALL">Tutte</option>';
+                    data.classes.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
                     renderStudentTable();
-                } else {
-                    alert("Errore caricamento dati");
                 }
             } catch (e) { console.error(e); }
-        }
-
-        function populateClassFilter(classes) {
-            const select = document.getElementById('filter-class');
-            select.innerHTML = '<option value="ALL">Tutte le classi</option>';
-            classes.forEach(cls => {
-                select.innerHTML += `<option value="${cls}">${cls}</option>`;
-            });
         }
 
         function renderStudentTable() {
             const filter = document.getElementById('filter-class').value;
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
-
             const filtered = filter === 'ALL' ? allStudents : allStudents.filter(s => s.classe === filter);
 
             filtered.forEach(s => {
                 tbody.innerHTML += `
                 <tr>
-                    <td><b>${s.display_name}</b> <br><small>${s.email}</small></td>
-                    <td><span style="background:#ddd; padding:2px 6px; border-radius:4px">${s.classe}</span></td>
+                    <td><b>${s.display_name}</b><br><small>${s.email}</small></td>
+                    <td>${s.classe}</td>
                     <td>
                         <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">Voto</button>
-                        <button class="small secondary" onclick="apriNote('${s.email}', '${s.display_name}')" style="margin-left:5px; background:#d63384;">Note</button>
+                        <button class="small secondary" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')" style="margin-left:5px; background:#d63384;">Note</button>
                     </td>
                 </tr>`;
             });
-
-            if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="3">Nessuno studente trovato.</td></tr>';
         }
 
-        async function apriVoto(studentEmail, studentName) {
-            const materia = prompt(`Materia per ${studentName}:`, "Matematica");
-            if (!materia) return;
-            const voto = prompt("Voto (1-10):");
-            if (!voto) return;
+        async function apriVoto(email, name) {
+            const mat = prompt("Materia:"); if (!mat) return;
+            const voto = prompt("Voto:"); if (!voto) return;
+            const teacher = document.getElementById('teacher-name-display').innerText;
 
-            const teacherName = document.getElementById('teacher-name-display').innerText;
-
-            try {
-                const res = await fetch(apiBaseUrl + "/voto", {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'add_grade',
-                        teacher_name: teacherName,
-                        student_email: studentEmail,
-                        materia: materia,
-                        voto: voto
-                    })
-                });
-                if (res.ok) alert("✅ Voto inviato!");
-                else alert("Errore invio voto");
-            } catch (e) { alert("Errore: " + e); }
+            await fetch(apiBaseUrl + "/voto", {
+                method: 'POST',
+                body: JSON.stringify({ action: 'add_grade', teacher_name: teacher, student_email: email, materia: mat, voto: voto })
+            });
+            alert("Voto inserito!");
         }
 
-        // --- LOGICA STUDENTE ---
-        async function setupStudent(email) {
-            switchView('view-student');
-            try {
-                const res = await fetch(apiBaseUrl + "/voto?email=" + email);
-                const data = await res.json();
-
-                const divMedie = document.getElementById('lista-medie');
-                divMedie.innerHTML = "";
-                if (data.medie) {
-                    for (const [mat, med] of Object.entries(data.medie)) {
-                        divMedie.innerHTML += `<p><b>${mat}</b>: <span class="media-badge">${med}</span></p>`;
-                    }
-                }
-
-                const divVoti = document.getElementById('lista-voti');
-                divVoti.innerHTML = "";
-                (data.voti || []).forEach(v => {
-                    divVoti.innerHTML += `<div class="voto-card">
-                        <strong>${v.materia}</strong>: ${v.voto} <br> 
-                        <small>Prof: ${v.teacher} - Data: ${v.data.substring(0, 10)}</small>
-                    </div>`;
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        // --- LOGICA NOTE (CONTAINER DOCKER) ---
-
-        let NOTE_API_URL = null;
+        // --- NOTE DOCENTE ---
         let currentStudentEmail = null;
-
-        async function apriNote(email, name) {
+        async function apriNoteTeacher(email, name) {
             currentStudentEmail = email;
             document.getElementById('note-student-name').innerText = name;
             switchView('view-notes');
+            document.getElementById('lista-note').innerHTML = "Caricamento...";
 
-            const listDiv = document.getElementById('lista-note');
-
-            // Se non abbiamo ancora l'IP, chiediamolo alla Lambda
-            if (!NOTE_API_URL) {
-                listDiv.innerHTML = '🔍 Connessione al Container in corso...';
-
-                try {
-                    // Chiamata alla Lambda Backend
-                    const res = await fetch(apiBaseUrl + "/voto", {
-                        method: 'POST',
-                        body: JSON.stringify({ action: 'get_container_ip' })
-                    });
-
-                    // Controllo errori Lambda
-                    if (!res.ok) {
-                        const errText = await res.text();
-                        throw new Error(`Errore Lambda (${res.status}): ${errText}`);
-                    }
-
-                    const data = await res.json();
-
-                    if (data.ip) {
-                        NOTE_API_URL = "http://" + data.ip;
-                        console.log("✅ Container trovato su:", NOTE_API_URL);
-                    } else {
-                        // Se l'IP è null, stampiamo l'errore ricevuto dalla Lambda
-                        throw new Error(data.error || "Container spento o IP non trovato.");
-                    }
-                } catch (e) {
-                    console.error(e);
-                    listDiv.innerHTML = `
-                        <div style="color:red; background:#ffe6e6; padding:10px; border:1px solid red;">
-                            <strong>⚠️ Errore Connessione:</strong><br>
-                            ${e.message}<br><br>
-                            <small>Verifica che il task ECS Fargate sia in stato RUNNING sulla console AWS.</small>
-                        </div>`;
-                    return; // STOP! Non provare a caricare le note
-                }
+            const success = await ensureDockerIP();
+            if (!success) {
+                document.getElementById('lista-note').innerHTML = "<p style='color:red'>Errore: Container Docker spento o irraggiungibile.</p>";
+                return;
             }
-
-            // Se siamo qui, abbiamo l'IP. Carichiamo le note.
-            loadNotes(email);
+            loadNotes(email, 'lista-note');
         }
 
-        async function loadNotes(email) {
-            const listDiv = document.getElementById('lista-note');
-            listDiv.innerHTML = 'Caricamento note dal container...';
+        async function inviaNota() {
+            const testo = document.getElementById('note-text').value;
+            const teacher = document.getElementById('teacher-name-display').innerText;
+            if (!testo) return;
 
             try {
-                // Chiamata al microservizio Flask su Fargate
-                const res = await fetch(`${NOTE_API_URL}/note?email=${email}`);
-                if (!res.ok) throw new Error("Errore chiamata API Docker");
+                await fetch(`${NOTE_API_URL}/note`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_email: currentStudentEmail, testo: testo, teacher: teacher })
+                });
+                alert("Nota inserita!");
+                document.getElementById('note-text').value = '';
+                loadNotes(currentStudentEmail, 'lista-note');
+            } catch (e) { alert("Errore invio nota: " + e.message); }
+        }
 
+        // --- STUDENTE ---
+        async function setupStudent(email) {
+            switchView('view-student');
+
+            // 1. Carica Voti (Lambda)
+            const res = await fetch(apiBaseUrl + "/voto?email=" + email);
+            const data = await res.json();
+
+            const divMedie = document.getElementById('lista-medie');
+            divMedie.innerHTML = "";
+            if (data.medie) {
+                for (const [m, v] of Object.entries(data.medie))
+                    divMedie.innerHTML += `<p><b>${m}</b>: <span class="media-badge">${v}</span></p>`;
+            }
+
+            const divVoti = document.getElementById('lista-voti');
+            divVoti.innerHTML = "";
+            (data.voti || []).forEach(v => {
+                divVoti.innerHTML += `<div class="voto-card"><strong>${v.materia}</strong>: ${v.voto} <br><small>${v.data.substring(0, 10)}</small></div>`;
+            });
+
+            // 2. Carica Note (Docker)
+            const divNotes = document.getElementById('student-notes-list');
+            divNotes.innerHTML = "Cerco connessione al registro note...";
+
+            const success = await ensureDockerIP();
+            if (!success) {
+                divNotes.innerHTML = "<p style='color:red'>Servizio note momentaneamente non disponibile (Container spento).</p>";
+                return;
+            }
+
+            loadNotes(email, 'student-notes-list');
+        }
+
+        // --- FUNZIONE CONDIVISA CARICAMENTO NOTE ---
+        async function loadNotes(email, containerId) {
+            const container = document.getElementById(containerId);
+            try {
+                const res = await fetch(`${NOTE_API_URL}/note?email=${email}`);
                 const notes = await res.json();
 
-                listDiv.innerHTML = '';
-                if (notes.length === 0) {
-                    listDiv.innerHTML = '<p>Nessuna nota disciplinare.</p>';
-                } else {
+                container.innerHTML = "";
+                if (notes.length === 0) container.innerHTML = "<p>Nessuna nota disciplinare.</p>";
+                else {
                     notes.forEach(n => {
-                        listDiv.innerHTML += `
-                        <div style="border-left: 4px solid #d63384; padding: 10px; background: #fff0f6; margin-bottom: 10px;">
+                        container.innerHTML += `
+                        <div class="nota-card">
                             <p style="margin:0">"${n.testo}"</p>
                             <small style="color:#666">Prof: ${n.teacher} - Data: ${n.data.substring(0, 10)}</small>
                         </div>`;
                     });
                 }
             } catch (e) {
-                listDiv.innerHTML = `<p style="color:red">Errore connessione container: ${e.message}</p>`;
+                container.innerHTML = `<p style="color:red">Errore connessione: ${e.message}</p>`;
             }
         }
 
-        async function inviaNota() {
-            const testo = document.getElementById('note-text').value;
-            if (!testo) return alert("Scrivi qualcosa!");
-
-            const teacherName = document.getElementById('teacher-name-display').innerText;
-
-            try {
-                const res = await fetch(`${NOTE_API_URL}/note`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        student_email: currentStudentEmail,
-                        testo: testo,
-                        teacher: teacherName
-                    })
-                });
-
-                if (res.ok) {
-                    alert("Nota inserita con successo!");
-                    document.getElementById('note-text').value = '';
-                    loadNotes(currentStudentEmail); // Ricarica la lista
-                } else {
-                    alert("Errore inserimento nota");
-                }
-            } catch (e) {
-                alert("Errore API Docker: " + e.message);
-            }
-        }
     </script>
 </body>
 
