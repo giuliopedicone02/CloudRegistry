@@ -481,17 +481,67 @@
         }
 
         function login() {
-            const email = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const usr = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
+            console.log("--- INIZIO LOGIN ---");
 
-            usr.authenticateUser(new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass }), {
-                onSuccess: () => {
-                    currentUser = usr;
-                    loadUserProfile(); // Funzione separata per pulizia
-                },
-                onFailure: (err) => showToast(err.message, 'error')
-            });
+            // 1. Controlliamo se i campi esistono
+            const emailField = document.getElementById('login-user');
+            const passField = document.getElementById('login-pass');
+
+            if (!emailField || !passField) {
+                alert("Errore HTML: Campi input non trovati!");
+                return;
+            }
+
+            const email = emailField.value.trim();
+            const pass = passField.value.trim();
+
+            console.log("Email inserita:", email);
+
+            // 2. Controllo campi vuoti
+            if (!email || !pass) {
+                showToast("Inserisci sia Email che Password!", "error");
+                return;
+            }
+
+            try {
+                // 3. Controllo configurazione Cognito
+                if (!userPool) {
+                    alert("Errore Configurazione: UserPool non inizializzata. Controlla config.js");
+                    return;
+                }
+
+                const usr = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
+                const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass });
+
+                console.log("Invio richiesta a Cognito...");
+
+                usr.authenticateUser(authDetails, {
+                    onSuccess: (result) => {
+                        console.log("Login Riuscito!");
+                        currentUser = usr;
+                        showToast("✅ Login effettuato!");
+                        loadUserProfile();
+                    },
+                    onFailure: (err) => {
+                        console.error("Errore Cognito:", err);
+                        showToast("❌ Errore: " + (err.message || JSON.stringify(err)), 'error');
+                    },
+                    newPasswordRequired: (userAttributes, requiredAttributes) => {
+                        // Gestione primo accesso se richiesto cambio password
+                        const newPw = prompt("È il tuo primo accesso. Imposta una nuova password:");
+                        if (newPw) {
+                            usr.completeNewPasswordChallenge(newPw, {}, {
+                                onSuccess: () => { login(); },
+                                onFailure: (e) => showToast("Errore cambio password: " + e.message, 'error')
+                            });
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error("Errore CRITICO nel login:", e);
+                alert("Errore nel codice JavaScript: " + e.message);
+            }
         }
 
         // Carica i dati utente e decide dove andare
