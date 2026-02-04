@@ -422,7 +422,8 @@
     <script src="config.js"></script>
 
     <script>
-        if (typeof window.apiConfig === 'undefined') alert("Config mancante");
+        if (typeof window.apiConfig === 'undefined') alert("Errore: config.js mancante.");
+
         const poolData = { UserPoolId: window.apiConfig.UserPoolId, ClientId: window.apiConfig.ClientId };
         const apiBaseUrl = window.apiConfig.ApiUrl;
         const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
@@ -430,7 +431,7 @@
         let userData = {};
         let allStudents = [];
         let NOTE_API_URL = null;
-        let currentStudentEmail = null; // Globale per sapere su chi stiamo lavorando
+        let currentStudentEmail = null;
 
         // --- UTILS ---
         function switchView(viewId) {
@@ -481,27 +482,45 @@
 
         function login() {
             const email = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
             const usr = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
-            usr.authenticateUser(new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: document.getElementById('login-pass').value }), {
+
+            usr.authenticateUser(new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pass }), {
                 onSuccess: () => {
                     currentUser = usr;
-                    currentUser.getUserAttributes((err, attrs) => {
-                        userData = {}; attrs.forEach(a => userData[a.getName()] = a.getValue());
-                        const name = `${userData['given_name']} ${userData['family_name']}`;
-                        const role = userData['custom:role'] || 'Student';
-                        if (role === 'Teacher') {
-                            document.getElementById('teacher-name-display').innerText = name;
-                            setupTeacher();
-                        } else {
-                            document.getElementById('student-name-display').innerText = name;
-                            setupStudent(email);
-                        }
-                    });
+                    loadUserProfile(); // Funzione separata per pulizia
                 },
                 onFailure: (err) => showToast(err.message, 'error')
             });
         }
-        function logout() { if (currentUser) currentUser.signOut(); location.reload(); }
+
+        // Carica i dati utente e decide dove andare
+        function loadUserProfile() {
+            currentUser.getUserAttributes((err, attrs) => {
+                if (err) return;
+                userData = {};
+                attrs.forEach(a => userData[a.getName()] = a.getValue());
+
+                const name = `${userData['given_name']} ${userData['family_name']}`;
+                const role = userData['custom:role'] || 'Student';
+                const email = userData['email'];
+
+                if (role === 'Teacher') {
+                    document.getElementById('teacher-name-display').innerText = name;
+                    document.getElementById('teacher-avatar').innerText = name.charAt(0).toUpperCase();
+                    setupTeacher();
+                } else {
+                    document.getElementById('student-name-display').innerText = name;
+                    document.getElementById('student-avatar').innerText = name.charAt(0).toUpperCase();
+                    setupStudent(email);
+                }
+            });
+        }
+
+        function logout() {
+            if (currentUser) currentUser.signOut();
+            location.reload();
+        }
 
         // --- INFRA ---
         async function ensureDockerIP() {
@@ -522,7 +541,7 @@
             if (data.students) {
                 allStudents = data.students;
                 const sel = document.getElementById('filter-class');
-                sel.innerHTML = '<option value="ALL">Tutte</option>';
+                sel.innerHTML = '<option value="ALL">Tutte le classi</option>';
                 data.classes.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
                 renderStudentTable();
             }
@@ -532,14 +551,22 @@
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
             const list = filter === 'ALL' ? allStudents : allStudents.filter(s => s.classe === filter);
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">📭</div><p>Nessuno studente trovato</p></td></tr>';
+                return;
+            }
+
             list.forEach(s => {
                 tbody.innerHTML += `<tr>
                     <td><b>${s.display_name}</b><br><small>${s.email}</small></td>
-                    <td>${s.classe}</td>
+                    <td><span style="background:var(--gradient); color:white; padding:4px 12px; border-radius:20px">${s.classe}</span></td>
                     <td>
-                        <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">➕ Voto</button>
-                        <button class="small secondary" onclick="apriStoricoVoti('${s.email}', '${s.display_name}')">📜 Storico</button>
-                        <button class="small danger" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')">⚠️ Note</button>
+                        <div class="button-row">
+                            <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">📝 Voto</button>
+                            <button class="small secondary" onclick="apriStoricoVoti('${s.email}', '${s.display_name}')">📜 Storico</button>
+                            <button class="small danger" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')">⚠️ Note</button>
+                        </div>
                     </td>
                 </tr>`;
             });
@@ -550,18 +577,22 @@
             currentStudentEmail = email;
             document.getElementById('modal-student-name').innerText = name;
             document.getElementById('voto-modal').classList.add('active');
+            document.getElementById('modal-materia').value = '';
+            document.getElementById('modal-voto').value = '';
+            document.getElementById('modal-materia').focus();
         }
 
         async function confermaVoto() {
             const mat = document.getElementById('modal-materia').value;
             const voto = document.getElementById('modal-voto').value;
+            if (!mat || !voto) return showToast("Compila tutti i campi", "error");
             const teacher = document.getElementById('teacher-name-display').innerText;
+
             await fetch(apiBaseUrl + "/voto", { method: 'POST', body: JSON.stringify({ action: 'add_grade', teacher_name: teacher, student_email: currentStudentEmail, materia: mat, voto: voto }) });
             showToast("Voto inserito");
             document.getElementById('voto-modal').classList.remove('active');
         }
 
-        // NUOVO: Visualizza Storico per Cancellare
         async function apriStoricoVoti(email, name) {
             currentStudentEmail = email;
             document.getElementById('history-student-name').innerText = name;
@@ -569,28 +600,18 @@
             const list = document.getElementById('history-list');
             list.innerHTML = '<div class="loading"><div class="spinner"></div>Caricamento...</div>';
 
-            // Usiamo la stessa API dello studente per leggere i voti
             const res = await fetch(apiBaseUrl + "/voto?email=" + email);
             const data = await res.json();
 
             list.innerHTML = '';
             if (!data.voti || data.voti.length === 0) {
-                list.innerHTML = '<p style="text-align:center">Nessun voto presente.</p>';
+                list.innerHTML = '<p style="text-align:center; padding:20px;">Nessun voto presente.</p>';
                 return;
             }
 
             data.voti.forEach(v => {
-                if (v.voto) { // Filtra note
-                    // Importante: ci serve l'SK per cancellare. In Dynamo l'SK è "VOTO#timestamp"
-                    // Ma l'API get_student formatta la risposta. 
-                    // Il campo 'sk' originale deve essere esposto dalla Lambda get_student? 
-                    // Se la Lambda usa 'SK' per 'data', possiamo ricostruirlo o usarlo se presente.
-                    // Assumiamo che 'data' nel JSON sia il timestamp ISO che compone l'SK.
-
-                    // Nota: nel tuo codice python 'data' = timestamp. 
-                    // L'SK è f"VOTO#{timestamp}". Quindi ricostruiamo l'SK.
+                if (v.voto) {
                     const sk_ricostruito = `VOTO#${v.data}`;
-
                     list.innerHTML += `
                     <div class="grade-card" style="display:flex; justify-content:space-between; align-items:center;">
                         <div>
@@ -607,37 +628,29 @@
             if (!confirm("Sicuro di voler eliminare questo voto?")) return;
             try {
                 const res = await fetch(apiBaseUrl + "/voto", {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'delete_grade',
-                        student_email: currentStudentEmail,
-                        sk: sk
-                    })
+                    method: 'POST', body: JSON.stringify({ action: 'delete_grade', student_email: currentStudentEmail, sk: sk })
                 });
                 if (res.ok) {
                     showToast("Voto eliminato");
-                    // Ricarica la lista dello storico
                     apriStoricoVoti(currentStudentEmail, document.getElementById('history-student-name').innerText);
-                } else {
-                    showToast("Errore cancellazione", "error");
-                }
+                } else showToast("Errore cancellazione", "error");
             } catch (e) { showToast(e.message, "error"); }
         }
-
 
         // --- CRUD NOTE DOCENTE ---
         async function apriNoteTeacher(email, name) {
             currentStudentEmail = email;
             document.getElementById('note-student-name').innerText = name;
             switchView('view-notes');
-            if (await ensureDockerIP()) loadNotes(email, 'lista-note', true); // true = mostra tasti cancellazione
-            else document.getElementById('lista-note').innerHTML = "Container non raggiungibile";
+            document.getElementById('lista-note').innerHTML = '<div class="loading"><div class="spinner"></div>Connessione Docker...</div>';
+            if (await ensureDockerIP()) loadNotes(email, 'lista-note', true);
+            else document.getElementById('lista-note').innerHTML = "<p style='color:red; text-align:center;'>Container Docker spento o irraggiungibile</p>";
         }
 
         async function inviaNota() {
             const txt = document.getElementById('note-text').value;
             const teacher = document.getElementById('teacher-name-display').innerText;
-            if (!txt) return;
+            if (!txt) return showToast("Scrivi qualcosa", "error");
             await fetch(`${NOTE_API_URL}/note`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ student_email: currentStudentEmail, testo: txt, teacher: teacher })
@@ -650,70 +663,78 @@
         async function cancellaNota(sk) {
             if (!confirm("Eliminare questa nota?")) return;
             try {
-                // Flask DELETE
                 const res = await fetch(`${NOTE_API_URL}/note`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'DELETE', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ student_email: currentStudentEmail, sk: sk })
                 });
                 if (res.ok) {
                     showToast("Nota eliminata");
                     loadNotes(currentStudentEmail, 'lista-note', true);
-                } else showToast("Errore cancellazione nota", "error");
+                } else showToast("Errore cancellazione", "error");
             } catch (e) { console.error(e); }
         }
 
         // --- STUDENTE ---
         async function setupStudent(email) {
             switchView('view-student');
-            // Carica Voti
             const res = await fetch(apiBaseUrl + "/voto?email=" + email);
             const data = await res.json();
 
-            // Medie
             const divM = document.getElementById('lista-medie'); divM.innerHTML = '';
-            if (data.medie) for (const [m, v] of Object.entries(data.medie))
-                if (m !== 'Sconosciuta') divM.innerHTML += `<div style="background:white; padding:10px; border-radius:8px; text-align:center; box-shadow:0 2px 5px #ddd"><b>${m}</b><br><span style="font-size:1.5rem; color:var(--primary)">${v}</span></div>`;
+            if (data.medie && Object.keys(data.medie).length > 0) {
+                for (const [m, v] of Object.entries(data.medie))
+                    if (m !== 'Sconosciuta') divM.innerHTML += `<div class="average-card"><div class="average-subject">${m}</div><div class="average-value">${v}</div></div>`;
+            } else divM.innerHTML = '<p style="color:#666">Nessuna media.</p>';
 
-            // Voti
             const divV = document.getElementById('lista-voti'); divV.innerHTML = '';
-            (data.voti || []).forEach(v => {
-                if (v.voto) divV.innerHTML += `<div class="grade-card"><b>${v.materia}</b>: ${v.voto} <small>(${v.data.substring(0, 10)})</small></div>`;
-            });
+            if (data.voti && data.voti.length > 0) {
+                data.voti.forEach(v => {
+                    if (v.voto) divV.innerHTML += `
+                        <div class="grade-card">
+                            <div class="grade-header"><div class="grade-subject">${v.materia}</div><div class="grade-value">${v.voto}</div></div>
+                            <div class="grade-meta"><small>Data: ${new Date(v.data).toLocaleDateString()} - Prof: ${v.teacher || 'ND'}</small></div>
+                        </div>`;
+                });
+            } else divV.innerHTML = '<p style="color:#666">Nessun voto.</p>';
 
-            // Note
-            if (await ensureDockerIP()) loadNotes(email, 'student-notes-list', false); // false = no cancellazione
+            const divN = document.getElementById('student-notes-list');
+            divN.innerHTML = '<div class="loading"><div class="spinner"></div>Connessione Docker...</div>';
+            if (await ensureDockerIP()) loadNotes(email, 'student-notes-list', false);
+            else divN.innerHTML = "<p style='color:red'>Servizio note non disponibile</p>";
         }
 
         // --- SHARED: CARICAMENTO NOTE ---
         async function loadNotes(email, divId, isTeacher) {
             const div = document.getElementById(divId);
-            div.innerHTML = '<div class="spinner"></div>';
             try {
                 const res = await fetch(`${NOTE_API_URL}/note?email=${email}`);
                 const notes = await res.json();
                 div.innerHTML = '';
-                if (notes.length === 0) div.innerHTML = '<p>Nessuna nota.</p>';
+                if (notes.length === 0) div.innerHTML = "<div class='empty-state'><div class='empty-state-icon'>✅</div><p>Nessuna nota</p></div>";
                 else notes.forEach(n => {
-                    // Costruiamo l'SK per la cancellazione se serve (SK=NOTA#timestamp) -> In questo caso n.SK dovrebbe essere restituito dal backend Flask
-                    // Se Flask ritorna l'oggetto DynamoDB, dovrebbe esserci.
-                    // Se nel codice Flask non ritorni 'SK', aggiornalo. 
-                    // Assumiamo che n.SK ci sia.
-
-                    let btnDelete = '';
-                    if (isTeacher) {
-                        btnDelete = `<button class="delete-corner icon-btn" onclick="cancellaNota('${n.SK}')">🗑️</button>`;
-                    }
-
+                    let btn = isTeacher ? `<button class="delete-corner icon-btn" onclick="cancellaNota('${n.SK}')">🗑️</button>` : '';
                     div.innerHTML += `
                     <div class="nota-card">
-                        ${btnDelete}
-                        <p style="margin:0">"${n.testo}"</p>
-                        <small style="color:#666">Prof: ${n.teacher} - ${n.data.substring(0, 10)}</small>
+                        ${btn}
+                        <p style="margin:0; font-size:1.1rem">"${n.testo}"</p>
+                        <small style="color:#666; margin-top:5px; display:block">Prof: ${n.teacher} - ${new Date(n.data).toLocaleDateString()}</small>
                     </div>`;
                 });
-            } catch (e) { div.innerHTML = 'Errore note'; }
+            } catch (e) { div.innerHTML = '<p style="color:red">Errore caricamento note</p>'; }
         }
+
+        // --- CHECK SESSION AL CARICAMENTO (EVITA LOGOUT SU F5) ---
+        (function checkSession() {
+            const cognitoUser = userPool.getCurrentUser();
+            if (cognitoUser != null) {
+                cognitoUser.getSession(function (err, session) {
+                    if (session.isValid()) {
+                        currentUser = cognitoUser;
+                        loadUserProfile(); // Ripristina la vista corretta
+                    }
+                });
+            }
+        })();
 
     </script>
 </body>
