@@ -3,126 +3,62 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro Cloud Pro</title>
     <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
     <script src="https://unpkg.com/amazon-cognito-identity-js@5.2.9/dist/amazon-cognito-identity.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #e63946;
+            --primary-dark: #c62d3a;
+            --secondary: #6c757d;
+            --success: #2a9d8f;
+            --danger: #e63946;
+            --warning: #f77f00;
+            --info: #457b9d;
+            --light: #f8f9fa;
+            --dark: #1d3557;
+            --purple: #d63384;
+            --gradient: linear-gradient(135deg, #e63946 0%, #a8001e 100%);
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            max-width: 900px;
-            margin: 2rem auto;
-            background: #f4f6f8;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #e63946 0%, #a8001e 100%);
+            min-height: 100vh;
+            padding: 1rem;
             color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .box {
             background: white;
             padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             display: none;
             margin-bottom: 20px;
+            animation: slideUp 0.4s ease-out;
         }
 
         .visible {
             display: block;
-            animation: fadeIn 0.5s;
         }
 
-        input,
-        select,
-        button {
-            width: 100%;
-            margin: 8px 0;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-        }
-
-        button {
-            background: #0073bb;
-            color: white;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        button:hover {
-            background: #005f99;
-        }
-
-        button.secondary {
-            background: #6c757d;
-        }
-
-        button.small {
-            width: auto;
-            padding: 5px 15px;
-            font-size: 0.9rem;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        th {
-            background: #0073bb;
-            color: white;
-        }
-
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: #eef;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .voto-card {
-            border-left: 5px solid #28a745;
-            padding: 15px;
-            margin: 10px 0;
-            background: white;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-
-        .nota-card {
-            border-left: 5px solid #d63384;
-            padding: 15px;
-            margin: 10px 0;
-            background: #fff0f6;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-
-        .media-badge {
-            float: right;
-            background: #0073bb;
-            color: white;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-
-        @keyframes fadeIn {
+        @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(30px);
             }
 
             to {
@@ -130,105 +66,591 @@
                 transform: translateY(0);
             }
         }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            color: #e63946;
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+        }
+
+        h3 {
+            color: var(--dark);
+            margin: 1.5rem 0 1rem 0;
+            font-size: 1.3rem;
+            border-left: 4px solid #e63946;
+            padding-left: 1rem;
+        }
+
+        input,
+        select,
+        textarea,
+        button {
+            width: 100%;
+            margin: 8px 0;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 115, 187, 0.1);
+        }
+
+        button {
+            background: var(--gradient);
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(230, 57, 70, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: var(--secondary);
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.small {
+            width: auto;
+            padding: 8px 20px;
+            font-size: 0.9rem;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        button.danger {
+            background: var(--purple);
+            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.3);
+        }
+
+        /* Header con profilo */
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .user-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        /* Filtri */
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar strong {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .filter-bar select {
+            flex: 1;
+            min-width: 200px;
+            margin: 0;
+        }
+
+        /* Tabella moderna */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th {
+            background: var(--gradient);
+            color: white;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85rem;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Card voti e note */
+        .grade-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid var(--success);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grade-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: var(--success);
+            opacity: 0.05;
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+        }
+
+        .grade-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .nota-card {
+            background: linear-gradient(135deg, #fff0f6 0%, #ffe0f0 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(214, 51, 132, 0.15);
+            border-left: 5px solid var(--purple);
+            transition: all 0.3s ease;
+        }
+
+        .nota-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(214, 51, 132, 0.25);
+        }
+
+        .grade-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .grade-subject {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .grade-value {
+            background: var(--success);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
+        }
+
+        .grade-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .grade-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .grade-meta-item::before {
+            content: '•';
+            color: #e63946;
+            font-weight: bold;
+        }
+
+        /* Badge medie */
+        .average-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .average-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .average-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .average-subject {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .average-value {
+            font-size: 2rem;
+            font-weight: bold;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Alert box */
+        .alert-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border-left: 4px solid var(--warning);
+            box-shadow: 0 2px 10px rgba(255, 193, 7, 0.2);
+        }
+
+        .alert-box small {
+            color: #856404;
+        }
+
+        /* Note text area */
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Buttons row */
+        .button-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .button-row button {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 0.5rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .box {
+                padding: 1.5rem;
+                border-radius: 15px;
+            }
+
+            .profile-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-bar select {
+                width: 100%;
+            }
+
+            .average-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+
+            table {
+                font-size: 0.9rem;
+            }
+
+            th,
+            td {
+                padding: 12px 8px;
+            }
+
+            .grade-value {
+                font-size: 1.1rem;
+                padding: 6px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .average-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-row {
+                flex-direction: column;
+            }
+
+            .button-row button {
+                width: 100%;
+            }
+        }
+
+        /* Loading spinner */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #e63946;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <h1 style="text-align:center; color:#0073bb;">☁️ Registro Cloud</h1>
+    <div class="container">
+        <h1>☁️ Registro Cloud Pro</h1>
 
-    <div id="view-login" class="box visible">
-        <h2>🔐 Accedi</h2>
-        <input type="text" id="login-user" placeholder="Email">
-        <input type="password" id="login-pass" placeholder="Password">
-        <button onclick="login()">Entra</button>
-        <button class="secondary" onclick="switchView('view-register')">Registrati</button>
-    </div>
-
-    <div id="view-register" class="box">
-        <h2>📝 Nuova Registrazione</h2>
-        <input type="text" id="reg-name" placeholder="Nome">
-        <input type="text" id="reg-surname" placeholder="Cognome">
-        <input type="text" id="reg-email" placeholder="Email">
-        <input type="password" id="reg-pass" placeholder="Password">
-        <select id="reg-role" onchange="toggleClasseInput()">
-            <option value="Student">Studente</option>
-            <option value="Teacher">Docente</option>
-        </select>
-        <input type="text" id="reg-class" placeholder="Classe (es. 5A)">
-        <button onclick="register()">Crea Account</button>
-        <button class="secondary" onclick="switchView('view-login')">Annulla</button>
-    </div>
-
-    <div id="view-verify" class="box">
-        <h2>📩 Verifica Email</h2>
-        <p>Inserisci il codice ricevuto via mail.</p>
-        <input type="text" id="verify-email" placeholder="La tua email" readonly style="background:#eee">
-        <input type="text" id="verify-code" placeholder="Codice OTP">
-        <button onclick="confirmVerification()">Conferma Account</button>
-        <button class="secondary" onclick="switchView('view-login')">Torna al Login</button>
-    </div>
-
-    <div id="view-teacher" class="box">
-        <div style="display:flex; justify-content:space-between; align-items:center">
-            <h2>👨‍🏫 Prof. <span id="teacher-name-display"></span></h2>
-            <button class="secondary small" onclick="logout()">Esci</button>
+        <div id="view-login" class="box visible">
+            <h2>🔐 Accedi al tuo account</h2>
+            <input type="text" id="login-user" placeholder="Email">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button onclick="login()">Accedi</button>
+            <button class="secondary" onclick="switchView('view-register')">Crea nuovo account</button>
         </div>
-        <div class="filter-bar">
-            <strong>Classe:</strong>
-            <select id="filter-class" onchange="renderStudentTable()" style="width: auto; flex-grow:1">
-                <option value="ALL">Caricamento...</option>
+
+        <div id="view-register" class="box">
+            <h2>📝 Registrazione</h2>
+            <input type="text" id="reg-name" placeholder="Nome">
+            <input type="text" id="reg-surname" placeholder="Cognome">
+            <input type="text" id="reg-email" placeholder="Email">
+            <input type="password" id="reg-pass" placeholder="Password">
+            <select id="reg-role" onchange="toggleClasseInput()">
+                <option value="Student">Studente</option>
+                <option value="Teacher">Docente</option>
             </select>
-            <button class="small" onclick="loadStudents()">🔄 Aggiorna</button>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Studente</th>
-                    <th>Classe</th>
-                    <th>Azione</th>
-                </tr>
-            </thead>
-            <tbody id="student-table-body"></tbody>
-        </table>
-    </div>
-
-    <div id="view-student" class="box">
-        <div style="display:flex; justify-content:space-between; align-items:center">
-            <h2>🎓 Ciao, <span id="student-name-display"></span></h2>
-            <button class="secondary small" onclick="logout()">Esci</button>
+            <input type="text" id="reg-class" placeholder="Classe (es. 5A)">
+            <div class="button-row">
+                <button onclick="register()">Crea Account</button>
+                <button class="secondary" onclick="switchView('view-login')">Annulla</button>
+            </div>
         </div>
 
-        <p>La tua situazione scolastica:</p>
-        <div id="lista-medie" style="margin-bottom: 20px;"></div>
+        <div id="view-verify" class="box">
+            <h2>📩 Verifica Email</h2>
+            <p style="margin-bottom: 1rem; color: #666;">Inserisci il codice di verifica che hai ricevuto via email.</p>
+            <input type="text" id="verify-email" placeholder="La tua email" readonly style="background:#f0f0f0">
+            <input type="text" id="verify-code" placeholder="Codice di verifica">
+            <div class="button-row">
+                <button onclick="confirmVerification()">Conferma Account</button>
+                <button class="secondary" onclick="switchView('view-login')">Torna al Login</button>
+            </div>
+        </div>
 
-        <hr>
-        <h3>📊 Voti</h3>
-        <div id="lista-voti"></div>
+        <div id="view-teacher" class="box">
+            <div class="profile-header">
+                <div class="profile-info">
+                    <div class="avatar" id="teacher-avatar">👨‍🏫</div>
+                    <div>
+                        <div class="user-name" id="teacher-name-display"></div>
+                        <small style="color: #666;">Docente</small>
+                    </div>
+                </div>
+                <button class="secondary small" onclick="logout()">Esci</button>
+            </div>
 
-        <hr>
-        <h3>⚠️ Note Disciplinari</h3>
-        <div id="student-notes-list">
-            <small>Caricamento note...</small>
-        </div>
-    </div>
+            <div class="filter-bar">
+                <strong>Filtra per classe:</strong>
+                <select id="filter-class" onchange="renderStudentTable()">
+                    <option value="ALL">Caricamento...</option>
+                </select>
+                <button class="small" onclick="loadStudents()">🔄 Aggiorna</button>
+            </div>
 
-    <div id="view-notes" class="box">
-        <div style="display:flex; justify-content:space-between; align-items:center">
-            <h2>⚠️ Note: <span id="note-student-name"></span></h2>
-            <button class="secondary small" onclick="switchView('view-teacher')">Chiudi</button>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Studente</th>
+                            <th>Classe</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-table-body">
+                        <tr>
+                            <td colspan="3" class="loading">
+                                <div class="spinner"></div>
+                                Caricamento studenti...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div style="background:#fff3cd; padding:10px; border-radius:5px; margin:10px 0; border:1px solid #ffeeba;">
-            <small>Gestito dal Microservizio <b>Docker/Fargate</b>.</small>
+
+        <div id="view-student" class="box">
+            <div class="profile-header">
+                <div class="profile-info">
+                    <div class="avatar" id="student-avatar">🎓</div>
+                    <div>
+                        <div class="user-name" id="student-name-display"></div>
+                        <small style="color: #666;">Studente</small>
+                    </div>
+                </div>
+                <button class="secondary small" onclick="logout()">Esci</button>
+            </div>
+
+            <h3>📊 Le tue medie</h3>
+            <div id="lista-medie" class="average-grid"></div>
+
+            <h3>📚 Tutti i voti</h3>
+            <div id="lista-voti"></div>
+
+            <h3>⚠️ Note Disciplinari</h3>
+            <div id="student-notes-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Caricamento note...
+                </div>
+            </div>
         </div>
-        <div id="lista-note" style="margin-bottom:20px; max-height:200px; overflow-y:auto;">
-            <p>Caricamento...</p>
+
+        <div id="view-notes" class="box">
+            <div class="profile-header">
+                <h2 style="margin: 0;">⚠️ Note: <span id="note-student-name"></span></h2>
+                <button class="secondary small" onclick="switchView('view-teacher')">Chiudi</button>
+            </div>
+
+            <div class="alert-box">
+                <small>📦 Gestito dal Microservizio <b>Docker/Fargate</b></small>
+            </div>
+
+            <div id="lista-note" style="margin-bottom:20px; max-height:400px; overflow-y:auto;">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Caricamento note...
+                </div>
+            </div>
+
+            <h3>Aggiungi Nota</h3>
+            <textarea id="note-text" placeholder="Motivo della nota disciplinare..."></textarea>
+            <button onclick="inviaNota()" class="danger">Invia Nota</button>
         </div>
-        <hr>
-        <h3>Aggiungi Nota</h3>
-        <textarea id="note-text" rows="3" placeholder="Motivo della nota..."
-            style="width:100%; padding:10px;"></textarea>
-        <button onclick="inviaNota()" style="background:#d63384;">Invia Nota</button>
     </div>
 
     <script src="config.js"></script>
@@ -242,8 +664,6 @@
         let currentUser;
         let userData = {};
         let allStudents = [];
-
-        // --- VARIABILE GLOBALE PER L'IP DEL DOCKER ---
         let NOTE_API_URL = null;
 
         function switchView(viewId) {
@@ -312,9 +732,11 @@
 
                         if (role === 'Teacher') {
                             document.getElementById('teacher-name-display').innerText = fullName;
+                            document.getElementById('teacher-avatar').innerText = fullName.charAt(0).toUpperCase();
                             setupTeacher();
                         } else {
                             document.getElementById('student-name-display').innerText = fullName;
+                            document.getElementById('student-avatar').innerText = fullName.charAt(0).toUpperCase();
                             setupStudent(email);
                         }
                     });
@@ -325,9 +747,8 @@
 
         function logout() { if (currentUser) currentUser.signOut(); location.reload(); }
 
-        // --- FUNZIONE HELPER: TROVA IP DOCKER ---
         async function ensureDockerIP() {
-            if (NOTE_API_URL) return true; // Ce l'abbiamo già
+            if (NOTE_API_URL) return true;
 
             try {
                 console.log("Richiedo IP Container alla Lambda...");
@@ -366,7 +787,7 @@
                 if (data.students) {
                     allStudents = data.students;
                     const select = document.getElementById('filter-class');
-                    select.innerHTML = '<option value="ALL">Tutte</option>';
+                    select.innerHTML = '<option value="ALL">Tutte le classi</option>';
                     data.classes.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
                     renderStudentTable();
                 }
@@ -379,29 +800,47 @@
             tbody.innerHTML = '';
             const filtered = filter === 'ALL' ? allStudents : allStudents.filter(s => s.classe === filter);
 
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>Nessuno studente trovato</p>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
             filtered.forEach(s => {
                 tbody.innerHTML += `
                 <tr>
-                    <td><b>${s.display_name}</b><br><small>${s.email}</small></td>
-                    <td>${s.classe}</td>
                     <td>
-                        <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">Voto</button>
-                        <button class="small secondary" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')" style="margin-left:5px; background:#d63384;">Note</button>
+                        <strong style="font-size: 1.1rem;">${s.display_name}</strong><br>
+                        <small style="color: #666;">${s.email}</small>
+                    </td>
+                    <td><span style="background: var(--gradient); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 600;">${s.classe}</span></td>
+                    <td>
+                        <div class="button-row">
+                            <button class="small" onclick="apriVoto('${s.email}', '${s.display_name}')">📝 Voto</button>
+                            <button class="small danger" onclick="apriNoteTeacher('${s.email}', '${s.display_name}')">⚠️ Note</button>
+                        </div>
                     </td>
                 </tr>`;
             });
         }
 
         async function apriVoto(email, name) {
-            const mat = prompt("Materia:"); if (!mat) return;
-            const voto = prompt("Voto:"); if (!voto) return;
+            const mat = prompt("Inserisci la materia:");
+            if (!mat) return;
+            const voto = prompt("Inserisci il voto:");
+            if (!voto) return;
             const teacher = document.getElementById('teacher-name-display').innerText;
 
             await fetch(apiBaseUrl + "/voto", {
                 method: 'POST',
                 body: JSON.stringify({ action: 'add_grade', teacher_name: teacher, student_email: email, materia: mat, voto: voto })
             });
-            alert("Voto inserito!");
+            alert("✅ Voto inserito con successo!");
         }
 
         // --- NOTE DOCENTE ---
@@ -410,11 +849,11 @@
             currentStudentEmail = email;
             document.getElementById('note-student-name').innerText = name;
             switchView('view-notes');
-            document.getElementById('lista-note').innerHTML = "Caricamento...";
+            document.getElementById('lista-note').innerHTML = '<div class="loading"><div class="spinner"></div>Caricamento...</div>';
 
             const success = await ensureDockerIP();
             if (!success) {
-                document.getElementById('lista-note').innerHTML = "<p style='color:red'>Errore: Container Docker spento o irraggiungibile.</p>";
+                document.getElementById('lista-note').innerHTML = "<div class='empty-state'><div class='empty-state-icon'>⚠️</div><p style='color:red'>Container Docker non raggiungibile</p></div>";
                 return;
             }
             loadNotes(email, 'lista-note');
@@ -423,7 +862,7 @@
         async function inviaNota() {
             const testo = document.getElementById('note-text').value;
             const teacher = document.getElementById('teacher-name-display').innerText;
-            if (!testo) return;
+            if (!testo) return alert("Inserisci un testo per la nota!");
 
             try {
                 await fetch(`${NOTE_API_URL}/note`, {
@@ -431,10 +870,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ student_email: currentStudentEmail, testo: testo, teacher: teacher })
                 });
-                alert("Nota inserita!");
+                alert("✅ Nota inserita con successo!");
                 document.getElementById('note-text').value = '';
                 loadNotes(currentStudentEmail, 'lista-note');
-            } catch (e) { alert("Errore invio nota: " + e.message); }
+            } catch (e) { alert("❌ Errore invio nota: " + e.message); }
         }
 
         // --- STUDENTE ---
@@ -448,32 +887,54 @@
             const divMedie = document.getElementById('lista-medie');
             divMedie.innerHTML = "";
 
-            if (data.medie) {
+            if (data.medie && Object.keys(data.medie).length > 0) {
                 for (const [m, v] of Object.entries(data.medie)) {
-                    // MODIFICA: Mostra la media SOLO se la materia NON è "Sconosciuta"
                     if (m !== 'Sconosciuta') {
-                        divMedie.innerHTML += `<p><b>${m}</b>: <span class="media-badge">${v}</span></p>`;
+                        divMedie.innerHTML += `
+                            <div class="average-card">
+                                <div class="average-subject">${m}</div>
+                                <div class="average-value">${v}</div>
+                            </div>`;
                     }
                 }
+            } else {
+                divMedie.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><p>Nessuna media disponibile</p></div>';
             }
 
             const divVoti = document.getElementById('lista-voti');
             divVoti.innerHTML = "";
-            (data.voti || []).forEach(v => {
-                // CORREZIONE: Controlla se il campo 'voto' esiste. 
-                // Se è una Nota, v.voto sarà undefined e la riga verrà saltata.
-                if (v.voto) {
-                    divVoti.innerHTML += `<div class="voto-card"><strong>${v.materia}</strong>: ${v.voto} <br><small>${v.data.substring(0, 10)}</small></div>`;
-                }
-            });
+
+            if (data.voti && data.voti.length > 0) {
+                data.voti.forEach(v => {
+                    if (v.voto) {
+                        divVoti.innerHTML += `
+                            <div class="grade-card">
+                                <div class="grade-header">
+                                    <div class="grade-subject">${v.materia}</div>
+                                    <div class="grade-value">${v.voto}</div>
+                                </div>
+                                <div class="grade-meta">
+                                    <div class="grade-meta-item">
+                                        <strong>Docente:</strong> ${v.docente || 'Non specificato'}
+                                    </div>
+                                    <div class="grade-meta-item">
+                                        <strong>Data:</strong> ${new Date(v.data).toLocaleDateString('it-IT')}
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                });
+            } else {
+                divVoti.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📚</div><p>Nessun voto registrato</p></div>';
+            }
 
             // 2. Carica Note (Docker)
             const divNotes = document.getElementById('student-notes-list');
-            divNotes.innerHTML = "Cerco connessione al registro note...";
+            divNotes.innerHTML = '<div class="loading"><div class="spinner"></div>Connessione al registro note...</div>';
 
             const success = await ensureDockerIP();
             if (!success) {
-                divNotes.innerHTML = "<p style='color:red'>Servizio note momentaneamente non disponibile (Container spento).</p>";
+                divNotes.innerHTML = "<div class='empty-state'><div class='empty-state-icon'>⚠️</div><p style='color:red'>Servizio note momentaneamente non disponibile</p></div>";
                 return;
             }
 
@@ -488,18 +949,26 @@
                 const notes = await res.json();
 
                 container.innerHTML = "";
-                if (notes.length === 0) container.innerHTML = "<p>Nessuna nota disciplinare.</p>";
-                else {
+                if (notes.length === 0) {
+                    container.innerHTML = "<div class='empty-state'><div class='empty-state-icon'>✅</div><p>Nessuna nota disciplinare</p></div>";
+                } else {
                     notes.forEach(n => {
                         container.innerHTML += `
                         <div class="nota-card">
-                            <p style="margin:0">"${n.testo}"</p>
-                            <small style="color:#666">Prof: ${n.teacher} - Data: ${n.data.substring(0, 10)}</small>
+                            <p style="margin:0; font-size: 1.1rem; margin-bottom: 10px;">"${n.testo}"</p>
+                            <div class="grade-meta">
+                                <div class="grade-meta-item">
+                                    <strong>Docente:</strong> ${n.teacher}
+                                </div>
+                                <div class="grade-meta-item">
+                                    <strong>Data:</strong> ${new Date(n.data).toLocaleDateString('it-IT')}
+                                </div>
+                            </div>
                         </div>`;
                     });
                 }
             } catch (e) {
-                container.innerHTML = `<p style="color:red">Errore connessione: ${e.message}</p>`;
+                container.innerHTML = `<div class='empty-state'><div class='empty-state-icon'>⚠️</div><p style='color:red'>Errore connessione: ${e.message}</p></div>`;
             }
         }
 
