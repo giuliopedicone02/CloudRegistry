@@ -134,6 +134,28 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
         Effect   = "Allow"
         Resource = "*"
       }
+      # ... (i permessi dynamodb, sns, ses restano uguali) ...
+      {
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      # 👇👇👇 AGGIUNGI QUESTO BLOCCO NUOVO 👇👇👇
+      {
+        Action   = [
+          "ecs:ListTasks",
+          "ecs:DescribeTasks",
+          "ec2:DescribeNetworkInterfaces"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      # 👆👆👆 FINE AGGIUNTA 👆👆👆
+      {
+        Action   = ["logs:*"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
     ]
   })
 }

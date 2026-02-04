@@ -10,6 +10,14 @@ dynamodb = boto3.resource('dynamodb')
 ses = boto3.client('ses')    # ✅ Usiamo SES (Postino) per mail dirette
 cognito = boto3.client('cognito-idp')
 
+# ... altri import ...
+# AGGIUNGI QUESTI CLIENT:
+ecs = boto3.client('ecs')
+ec2 = boto3.client('ec2')
+
+# NOME DEL TUO CLUSTER (Deve essere uguale a quello in main.tf)
+CLUSTER_NAME = "registro-cloud-cluster"
+
 # --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
@@ -49,6 +57,40 @@ def gestisci_scrittura(event, headers):
     if isinstance(body, str): body = json.loads(body)
     
     action = body.get('action')
+
+    # --- AZIONE SPECIALE: TROVA IP DOCKER ---
+    if action == 'get_container_ip':
+        try:
+            # 1. Cerchiamo i task in esecuzione nel cluster
+            tasks = ecs.list_tasks(Cluster=CLUSTER_NAME, DesiredStatus='RUNNING')
+            task_arns = tasks.get('taskArns', [])
+
+            if not task_arns:
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Container spento'})}
+
+            # 2. Otteniamo i dettagli del primo task trovato
+            desc = ecs.describe_tasks(Cluster=CLUSTER_NAME, Tasks=[task_arns[0]])
+            task_details = desc['tasks'][0]
+
+            # 3. Cerchiamo l'interfaccia di rete (ENI) per trovare l'IP Pubblico
+            eni_id = None
+            for detail in task_details['attachments'][0]['details']:
+                if detail['name'] == 'networkInterfaceId':
+                    eni_id = detail['value']
+                    break
+            
+            if not eni_id:
+                return {'statusCode': 500, 'headers': headers, 'body': json.dumps("IP non trovato")}
+
+            # 4. Chiediamo a EC2 qual è l'IP pubblico di quella scheda di rete
+            net_info = ec2.describe_network_interfaces(NetworkInterfaceIds=[eni_id])
+            public_ip = net_info['NetworkInterfaces'][0].get('Association', {}).get('PublicIp')
+
+            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': public_ip})}
+
+        except Exception as e:
+            print("Errore ricerca IP:", str(e))
+            return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
 
     # --- 1. SCARICA LISTA STUDENTI ---
     if action == 'get_students':

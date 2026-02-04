@@ -451,7 +451,41 @@
 
         // --- LOGICA NOTE (CONTAINER DOCKER) ---
 
-        const NOTE_API_URL = "http://3.75.92.98/";
+        let NOTE_API_URL = null; // Diventa dinamico
+
+        async function apriNote(email, name) {
+            currentStudentEmail = email;
+            document.getElementById('note-student-name').innerText = name;
+            switchView('view-notes');
+
+            // Se non abbiamo ancora l'IP, chiediamolo alla Lambda
+            if (!NOTE_API_URL) {
+                const listDiv = document.getElementById('lista-note');
+                listDiv.innerHTML = '🔍 Cerco il microservizio Docker...';
+
+                try {
+                    // Chiamiamo la NOSTRA Lambda per farci dire l'IP del container
+                    const res = await fetch(apiBaseUrl + "/voto", {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'get_container_ip' })
+                    });
+                    const data = await res.json();
+
+                    if (data.ip) {
+                        NOTE_API_URL = "http://" + data.ip; // Trovato!
+                        console.log("Container IP:", NOTE_API_URL);
+                    } else {
+                        throw new Error("Container spento o non trovato.");
+                    }
+                } catch (e) {
+                    listDiv.innerHTML = `<p style="color:red">Errore infrastruttura: ${e.message}</p>`;
+                    return;
+                }
+            }
+
+            // Ora che abbiamo l'URL, carichiamo le note come sempre
+            loadNotes(email);
+        }
 
         let currentStudentEmail = null;
 
