@@ -162,20 +162,18 @@ def gestisci_scrittura(event, headers):
     # ... dentro gestisci_scrittura ...
     
     # --- AZIONE: DELETE GRADE (Nuova) ---
+    # --- AZIONE: DELETE GRADE ---
     if action == 'delete_grade':
         student_email = body.get('student_email')
-        timestamp_sk = body.get('sk') # L'SK è la "data" esatta del salvataggio
+        timestamp_sk = body.get('sk') # L'SK completo es: VOTO#2024-02-05...
 
         if not student_email or not timestamp_sk:
-             return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Dati mancanti")}
+             return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Dati mancanti (email o sk)")}
 
         table = dynamodb.Table(TABLE_NAME)
         
-        # Per cancellare serve la Chiave Primaria completa (PK e SK)
-        # Nota: timestamp_sk deve arrivarti già formattato come "VOTO#2023-..." o solo il timestamp?
-        # Nel frontend passeremo l'SK completo.
-        
         try:
+            # Eseguiamo la cancellazione
             table.delete_item(
                 Key={
                     'PK': f"STUDENT#{student_email}",
@@ -184,6 +182,8 @@ def gestisci_scrittura(event, headers):
             )
             return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto eliminato'})}
         except Exception as e:
+            # Questo stampa l'errore nei log di CloudWatch se qualcosa va storto
+            print(f"Errore cancellazione: {str(e)}")
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
         
 def gestisci_lettura(event, headers):
