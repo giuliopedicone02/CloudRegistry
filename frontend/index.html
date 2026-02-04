@@ -452,6 +452,7 @@
         // --- LOGICA NOTE (CONTAINER DOCKER) ---
 
         let NOTE_API_URL = null;
+        let currentStudentEmail = null;
 
         async function apriNote(email, name) {
             currentStudentEmail = email;
@@ -502,22 +503,15 @@
             loadNotes(email);
         }
 
-        let currentStudentEmail = null;
-
-        async function apriNote(email, name) {
-            currentStudentEmail = email;
-            document.getElementById('note-student-name').innerText = name;
-            switchView('view-notes');
-            loadNotes(email);
-        }
-
         async function loadNotes(email) {
             const listDiv = document.getElementById('lista-note');
-            listDiv.innerHTML = 'Wait... calling Docker Container...';
+            listDiv.innerHTML = 'Caricamento note dal container...';
 
             try {
                 // Chiamata al microservizio Flask su Fargate
                 const res = await fetch(`${NOTE_API_URL}/note?email=${email}`);
+                if (!res.ok) throw new Error("Errore chiamata API Docker");
+
                 const notes = await res.json();
 
                 listDiv.innerHTML = '';
