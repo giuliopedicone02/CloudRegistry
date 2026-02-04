@@ -59,39 +59,48 @@ def gestisci_scrittura(event, headers):
     action = body.get('action')
 
     # --- AZIONE SPECIALE: TROVA IP DOCKER ---
+    # --- AZIONE SPECIALE: TROVA IP DOCKER ---
     if action == 'get_container_ip':
         try:
-            # 1. Cerchiamo i task in esecuzione nel cluster
-            tasks = ecs.list_tasks(Cluster=CLUSTER_NAME, DesiredStatus='RUNNING')
+            # 1. CORREZIONE: Parametri in minuscolo (cluster, desiredStatus)
+            tasks = ecs.list_tasks(cluster=CLUSTER_NAME, desiredStatus='RUNNING')
             task_arns = tasks.get('taskArns', [])
 
             if not task_arns:
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Container spento'})}
 
-            # 2. Otteniamo i dettagli del primo task trovato
-            desc = ecs.describe_tasks(Cluster=CLUSTER_NAME, Tasks=[task_arns[0]])
+            # 2. CORREZIONE: Parametri in minuscolo (cluster, tasks)
+            desc = ecs.describe_tasks(cluster=CLUSTER_NAME, tasks=[task_arns[0]])
             task_details = desc['tasks'][0]
 
-            # 3. Cerchiamo l'interfaccia di rete (ENI) per trovare l'IP Pubblico
+            # 3. Cerchiamo l'interfaccia di rete (ENI)
             eni_id = None
-            for detail in task_details['attachments'][0]['details']:
-                if detail['name'] == 'networkInterfaceId':
-                    eni_id = detail['value']
-                    break
+            # Assicuriamoci che ci siano allegati
+            if 'attachments' in task_details and len(task_details['attachments']) > 0:
+                for detail in task_details['attachments'][0]['details']:
+                    if detail['name'] == 'networkInterfaceId':
+                        eni_id = detail['value']
+                        break
             
             if not eni_id:
-                return {'statusCode': 500, 'headers': headers, 'body': json.dumps("IP non trovato")}
+                return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': "Interfaccia di rete non trovata nel task"})}
 
-            # 4. Chiediamo a EC2 qual è l'IP pubblico di quella scheda di rete
+            # 4. Chiediamo a EC2 qual è l'IP pubblico (Qui invece EC2 vuole le maiuscole... che confusione!)
             net_info = ec2.describe_network_interfaces(NetworkInterfaceIds=[eni_id])
-            public_ip = net_info['NetworkInterfaces'][0].get('Association', {}).get('PublicIp')
-
-            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': public_ip})}
+            
+            # Controllo di sicurezza se non c'è IP pubblico
+            if 'NetworkInterfaces' in net_info and len(net_info['NetworkInterfaces']) > 0:
+                public_ip = net_info['NetworkInterfaces'][0].get('Association', {}).get('PublicIp')
+                if public_ip:
+                    return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': public_ip})}
+            
+            return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Nessun IP Pubblico assegnato'})}
 
         except Exception as e:
             print("Errore ricerca IP:", str(e))
+            traceback.print_exc() # Utile per vedere l'errore nei log
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
-
+        
     # --- 1. SCARICA LISTA STUDENTI ---
     if action == 'get_students':
         try:
