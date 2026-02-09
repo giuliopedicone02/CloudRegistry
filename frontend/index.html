@@ -920,7 +920,7 @@
             });
         }
 
-        function confirmVerification() {
+        async function confirmVerification() {
             const email = document.getElementById('verify-email').value;
             const code = document.getElementById('verify-code').value.trim();
 
@@ -930,13 +930,34 @@
             }
 
             const usr = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: userPool });
-            usr.confirmRegistration(code, true, (err) => {
+            usr.confirmRegistration(code, true, async (err) => {
                 if (err) {
                     showToast(err.message || "Codice non valido", "error");
                     return;
                 }
-                showToast("Account verificato! Puoi fare login");
-                setTimeout(() => switchView('view-login'), 1000);
+
+                showToast("Account verificato!");
+
+                // ⭐ NUOVA LOGICA: Iscrivere lo studente a SNS
+                try {
+                    const res = await fetch(apiBaseUrl + "/voto", {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'subscribe_student',
+                            email: email
+                        })
+                    });
+
+                    if (res.ok) {
+                        showToast("Ti abbiamo inviato una email di conferma SNS. Controlla la tua casella!", "success");
+                    } else {
+                        console.error("Errore sottoscrizione SNS");
+                    }
+                } catch (e) {
+                    console.error("Errore chiamata SNS:", e);
+                }
+
+                setTimeout(() => switchView('view-login'), 2000);
             });
         }
 
