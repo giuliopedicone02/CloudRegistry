@@ -7,7 +7,8 @@ from boto3.dynamodb.conditions import Key
 
 # --- INIZIALIZZAZIONE SERVIZI ---
 dynamodb = boto3.resource('dynamodb')
-ses = boto3.client('ses')
+# ses = boto3.client('ses') # RIMOSSO: Usiamo SNS
+sns = boto3.client('sns')   # NUOVO: Client SNS
 cognito = boto3.client('cognito-idp')
 ecs = boto3.client('ecs')
 ec2 = boto3.client('ec2')
@@ -15,10 +16,8 @@ ec2 = boto3.client('ec2')
 # --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
-CLUSTER_NAME = "registro-cloud-cluster" # Assicurati che coincida col nome in main.tf
-
-# SOSTITUISCI CON LA TUA MAIL VERIFICATA SU SES
-SENDER_EMAIL = "pediconegiulio02@gmail.com" 
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN') # Assicurati che Terraform passi questa variabile
+CLUSTER_NAME = "registro-cloud-cluster" 
 
 def lambda_handler(event, context):
     print("Evento:", json.dumps(event))
@@ -53,25 +52,20 @@ def gestisci_scrittura(event, headers):
     
     action = body.get('action')
 
-    # --- AZIONE 1: TROVA IP DOCKER (Corretta) ---
+    # --- AZIONE 1: TROVA IP DOCKER ---
     if action == 'get_container_ip':
         try:
-            # 1. Trova i task (parametri in MINUSCOLO)
             tasks = ecs.list_tasks(cluster=CLUSTER_NAME, desiredStatus='RUNNING')
             task_arns = tasks.get('taskArns', [])
 
             if not task_arns:
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Nessun container acceso trovato'})}
 
-            # 2. Descrivi il task (parametri in MINUSCOLO)
             desc = ecs.describe_tasks(cluster=CLUSTER_NAME, tasks=[task_arns[0]])
-            
             if not desc['tasks']:
                  return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'Impossibile descrivere il task'})}
                  
             task_details = desc['tasks'][0]
-
-            # 3. Trova interfaccia di rete (ENI)
             eni_id = None
             if 'attachments' in task_details and len(task_details['attachments']) > 0:
                 for detail in task_details['attachments'][0]['details']:
@@ -82,7 +76,6 @@ def gestisci_scrittura(event, headers):
             if not eni_id:
                 return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ip': None, 'error': 'ENI non trovata'})}
 
-            # 4. Trova IP Pubblico (EC2 vuole maiuscole qui...)
             net_info = ec2.describe_network_interfaces(NetworkInterfaceIds=[eni_id])
             public_ip = net_info['NetworkInterfaces'][0].get('Association', {}).get('PublicIp')
 
@@ -126,7 +119,7 @@ def gestisci_scrittura(event, headers):
         except Exception as e:
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
 
-    # --- AZIONE 3: ADD GRADE ---
+    # --- AZIONE 3: ADD GRADE (MODIFICATA PER SNS) ---
     if action == 'add_grade':
         student_email = body.get('student_email')
         materia = body.get('materia')
@@ -146,34 +139,62 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
+        # --- LOGICA SNS CON FILTER POLICY ---
         try:
             subject = f"Nuovo Voto in {materia}"
-            messaggio = f"Ciao, nuovo voto: {voto_raw} in {materia}."
-            ses.send_email(
-                Source=SENDER_EMAIL,
-                Destination={'ToAddresses': [student_email]},
-                Message={'Subject': {'Data': subject}, 'Body': {'Text': {'Data': messaggio}}}
-            )
+            messaggio = f"Ciao, hai ricevuto un nuovo voto: {voto_raw} in {materia}.\nDocente: {teacher_name}"
+            
+            if SNS_TOPIC_ARN:
+                # 1. Iscriviamo lo studente (se non è già iscritto)
+                # Applichiamo una FILTER POLICY: Questo studente riceverà messaggi 
+                # SOLO se il messaggio contiene l'attributo 'target_email' uguale alla sua email.
+                filter_policy = {
+                    "target_email": [student_email]
+                }
+                
+                print(f"Iscrizione/Verifica SNS per: {student_email}")
+                sns.subscribe(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Protocol='email',
+                    Endpoint=student_email,
+                    Attributes={
+                        'FilterPolicy': json.dumps(filter_policy)
+                    }
+                )
+
+                # 2. Pubblichiamo il messaggio con l'attributo specifico
+                print(f"Invio notifica SNS a: {student_email}")
+                sns.publish(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Message=messaggio,
+                    Subject=subject,
+                    MessageAttributes={
+                        'target_email': {
+                            'DataType': 'String',
+                            'StringValue': student_email
+                        }
+                    }
+                )
+            else:
+                print("ERRORE: SNS_TOPIC_ARN non configurato nelle variabili d'ambiente")
+
         except Exception as e:
-            print(f"Errore mail: {e}")
+            print(f"Errore invio SNS: {e}")
+            # Non blocchiamo il ritorno 200 se il DB ha scritto, ma logghiamo l'errore
+            
+        return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito e notifica inviata!'})}
 
-        return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito!'})}
-
-    # ... dentro gestisci_scrittura ...
-    
-    # --- AZIONE: DELETE GRADE (Nuova) ---
     # --- AZIONE: DELETE GRADE ---
     if action == 'delete_grade':
         student_email = body.get('student_email')
-        timestamp_sk = body.get('sk') # L'SK completo es: VOTO#2024-02-05...
+        timestamp_sk = body.get('sk') 
 
         if not student_email or not timestamp_sk:
-             return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Dati mancanti (email o sk)")}
+             return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Dati mancanti")}
 
         table = dynamodb.Table(TABLE_NAME)
         
         try:
-            # Eseguiamo la cancellazione
             table.delete_item(
                 Key={
                     'PK': f"STUDENT#{student_email}",
@@ -182,10 +203,9 @@ def gestisci_scrittura(event, headers):
             )
             return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto eliminato'})}
         except Exception as e:
-            # Questo stampa l'errore nei log di CloudWatch se qualcosa va storto
             print(f"Errore cancellazione: {str(e)}")
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
-        
+
 def gestisci_lettura(event, headers):
     params = event.get('queryStringParameters') or {}
     student_email = params.get('email')

@@ -74,12 +74,12 @@ resource "aws_cognito_user_pool_client" "client" {
   user_pool_id = aws_cognito_user_pool.pool.id
 }
 
-# 3. SNS (Lasciato per compatibilità)
+# 3. SNS (Sistema di notifiche)
 resource "aws_sns_topic" "topic" {
   name = "RegistryNotifications"
 }
 
-# 4. IAM ROLE
+# 4. IAM ROLE (Lambda)
 resource "aws_iam_role" "iam_for_lambda" {
   name = "iam_for_lambda_registry_v7" 
   
@@ -95,12 +95,12 @@ resource "aws_iam_role" "iam_for_lambda" {
   })
 }
 
+# Attacchiamo FullAccess per SNS perché dobbiamo gestire le Sottoscrizioni dinamiche
 resource "aws_iam_role_policy_attachment" "lambda_sns" {
   role       = aws_iam_role.iam_for_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 }
 
-# --- POLICY CORRETTA E PULITA ---
 resource "aws_iam_role_policy" "lambda_policy_v7" {
   name = "lambda_policy_v7"
   role = aws_iam_role.iam_for_lambda.id
@@ -109,17 +109,8 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
     Version = "2012-10-17"
     Statement = [
       {
+        # Permessi completi sul DB (incluso DeleteItem per il cestino)
         Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:DeleteItem"]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-      {
-        Action   = ["sns:Publish"]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-      {
-        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
         Effect   = "Allow"
         Resource = "*"
       },
@@ -134,6 +125,7 @@ resource "aws_iam_role_policy" "lambda_policy_v7" {
         Resource = "*"
       },
       {
+        # Permessi per scoprire l'IP del container ECS
         Action   = [
           "ecs:ListTasks",
           "ecs:DescribeTasks",
@@ -158,7 +150,7 @@ resource "aws_lambda_function" "backend" {
   environment {
     variables = {
       TABLE_NAME    = aws_dynamodb_table.db.name
-      SNS_TOPIC_ARN = aws_sns_topic.topic.arn
+      SNS_TOPIC_ARN = aws_sns_topic.topic.arn  # Fondamentale per le notifiche email
       USER_POOL_ID  = aws_cognito_user_pool.pool.id
     }
   }
@@ -369,7 +361,8 @@ resource "aws_iam_role_policy" "ecs_dynamo_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan","dynamodb:DeleteItem"]
+        # Permessi DB per il container (anche DeleteItem per eliminare note)
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:DeleteItem"]
         Effect   = "Allow"
         Resource = "*"
       }
