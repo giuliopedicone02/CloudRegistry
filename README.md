@@ -1,9 +1,3 @@
-Ecco il file `README.md` aggiornato e completo, pronto per essere caricato su GitHub. Ho inserito il link al sito funzionante in evidenza e la struttura delle cartelle esattamente come me l'hai passata.
-
-Puoi copiare e incollare tutto il blocco qui sotto.
-
----
-
 # ☁️ CloudRegistry - Registro Elettronico Cloud-Native su AWS
 
 **CloudRegistry** è una piattaforma di registro elettronico moderna, scalabile e sicura, progettata seguendo i paradigmi **Cloud-Native** su Amazon Web Services (AWS). Il progetto adotta un'architettura ibrida che combina la flessibilità del **Serverless** con la portabilità dei **Microservizi Containerizzati**.
@@ -62,8 +56,8 @@ L'architettura è progettata per garantire alta disponibilità, sicurezza e scal
 
 * Login sicuro tramite **Cognito User Pools**.
 * Distinzione dei ruoli:
-* **Docente:** Può inserire voti, note e visualizzare gli studenti.
-* **Studente:** Può visualizzare solo i propri voti, medie e note.
+    * **Docente:** Può inserire voti, note e visualizzare gli studenti.
+    * **Studente:** Può visualizzare solo i propri voti, medie e note.
 
 
 
@@ -84,7 +78,6 @@ L'architettura è progettata per garantire alta disponibilità, sicurezza e scal
 * Integrazione con **Amazon SNS**.
 * Ogni volta che un docente inserisce un voto, lo studente riceve una mail di notifica istantanea.
 
-> **Nota:** La gestione delle *Presenze* è stata volontariamente esclusa da questa iterazione del progetto per mantenere il focus sull'architettura cloud e non sulla complessità della logica di business.
 
 ---
 
