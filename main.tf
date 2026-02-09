@@ -370,6 +370,23 @@ resource "aws_iam_role_policy" "ecs_dynamo_policy" {
   })
 }
 
+# ⭐ NUOVO: Permessi SNS per inviare notifiche dalle note
+resource "aws_iam_role_policy" "ecs_sns_policy" {
+  name = "ecs_sns_access"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["sns:Publish"]
+        Effect   = "Allow"
+        Resource = aws_sns_topic.topic.arn
+      }
+    ]
+  })
+}
+
 # 4. CLUSTER ECS E TASK
 
 resource "aws_ecs_cluster" "cluster" {
@@ -402,7 +419,8 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
       environment = [
-        { name = "TABLE_NAME", value = aws_dynamodb_table.db.name }
+        { name = "TABLE_NAME", value = aws_dynamodb_table.db.name },
+        { name = "SNS_TOPIC_ARN", value = aws_sns_topic.topic.arn }
       ]
       logConfiguration = {
         logDriver = "awslogs"
