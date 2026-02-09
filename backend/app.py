@@ -10,8 +10,11 @@ CORS(app) # Fondamentale per far passare le chiamate dal browser
 
 # Configurazione DynamoDB
 TABLE_NAME = os.environ.get('TABLE_NAME', 'CloudRegistryDB')
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')  # ⭐ NUOVO: ARN del topic SNS
+
 dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
 table = dynamodb.Table(TABLE_NAME)
+sns = boto3.client('sns', region_name='eu-central-1')  # ⭐ NUOVO: Client SNS
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -34,21 +37,55 @@ def get_notes():
 @app.route('/note', methods=['POST'])
 def add_note():
     data = request.json
+    student_email = data.get('student_email')
+    testo = data.get('testo')
+    teacher = data.get('teacher', 'Docente')
+    
     item = {
-        'PK': f"STUDENT#{data.get('student_email')}",
+        'PK': f"STUDENT#{student_email}",
         'SK': f"NOTA#{datetime.datetime.now().isoformat()}",
         'tipo': 'NOTA',
-        'testo': data.get('testo'),
+        'testo': testo,
         'data': datetime.datetime.now().isoformat(),
-        'teacher': data.get('teacher')
+        'teacher': teacher
     }
+    
     try:
+        # Salva la nota su DynamoDB
         table.put_item(Item=item)
-        return jsonify({"message": "Nota inserita"}), 201
+        
+        # ⭐ INVIO NOTIFICA SNS ⭐
+        if SNS_TOPIC_ARN:
+            try:
+                subject = "⚠️ Nuova Nota Disciplinare"
+                message = f"Hai ricevuto una nuova nota disciplinare.\n\nMotivo: {testo}\n\nDocente: {teacher}"
+                
+                print(f"Invio notifica SNS per nota a: {student_email}")
+                sns.publish(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Message=message,
+                    Subject=subject,
+                    MessageAttributes={
+                        'target_email': {
+                            'DataType': 'String',
+                            'StringValue': student_email
+                        }
+                    }
+                )
+                print(f"Notifica SNS inviata con successo a {student_email}")
+            except Exception as e:
+                print(f"Errore invio SNS per nota: {e}")
+                # Non blocchiamo il ritorno 201 anche se SNS fallisce
+        else:
+            print("ATTENZIONE: SNS_TOPIC_ARN non configurato, nessuna notifica inviata")
+        
+        return jsonify({"message": "Nota inserita e notifica inviata"}), 201
+        
     except Exception as e:
+        print(f"Errore inserimento nota: {e}")
         return jsonify({"error": str(e)}), 500
 
-# 👇👇👇 QUESTA È LA PARTE CHE MANCA SU AWS 👇👇👇
+# DELETE: Elimina nota
 @app.route('/note', methods=['DELETE'])
 def delete_note():
     data = request.json
