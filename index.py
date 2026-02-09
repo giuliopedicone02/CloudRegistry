@@ -7,8 +7,7 @@ from boto3.dynamodb.conditions import Key
 
 # --- INIZIALIZZAZIONE SERVIZI ---
 dynamodb = boto3.resource('dynamodb')
-# ses = boto3.client('ses') # RIMOSSO: Usiamo SNS
-sns = boto3.client('sns')   # NUOVO: Client SNS
+sns = boto3.client('sns') 
 cognito = boto3.client('cognito-idp')
 ecs = boto3.client('ecs')
 ec2 = boto3.client('ec2')
@@ -16,7 +15,7 @@ ec2 = boto3.client('ec2')
 # --- CONFIGURAZIONE ---
 TABLE_NAME = os.environ.get('TABLE_NAME')
 USER_POOL_ID = os.environ.get('USER_POOL_ID')
-SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN') # Assicurati che Terraform passi questa variabile
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN') 
 CLUSTER_NAME = "registro-cloud-cluster" 
 
 def lambda_handler(event, context):

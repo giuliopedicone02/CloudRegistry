@@ -14,7 +14,6 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # MANIERE FORTI: Cancelliamo qualsiasi residuo locale che confonde Terraform
     - name: Clean Old State
       run: |
         rm -rf .terraform
@@ -30,7 +29,6 @@ jobs:
       run: |
         zip codice.zip index.py
 
-    # Init pulito che punta a S3 senza chiedere nulla
     - name: Terraform Init
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

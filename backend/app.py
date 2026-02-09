@@ -6,15 +6,15 @@ import datetime
 from boto3.dynamodb.conditions import Key
 
 app = Flask(__name__)
-CORS(app) # Fondamentale per far passare le chiamate dal browser
+CORS(app) 
 
 # Configurazione DynamoDB
 TABLE_NAME = os.environ.get('TABLE_NAME', 'CloudRegistryDB')
-SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')  # ⭐ NUOVO: ARN del topic SNS
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')  
 
 dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
 table = dynamodb.Table(TABLE_NAME)
-sns = boto3.client('sns', region_name='eu-central-1')  # ⭐ NUOVO: Client SNS
+sns = boto3.client('sns', region_name='eu-central-1') 
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -54,7 +54,6 @@ def add_note():
         # Salva la nota su DynamoDB
         table.put_item(Item=item)
         
-        # ⭐ INVIO NOTIFICA SNS ⭐
         if SNS_TOPIC_ARN:
             try:
                 subject = "⚠️ Nuova Nota Disciplinare"
@@ -75,7 +74,6 @@ def add_note():
                 print(f"Notifica SNS inviata con successo a {student_email}")
             except Exception as e:
                 print(f"Errore invio SNS per nota: {e}")
-                # Non blocchiamo il ritorno 201 anche se SNS fallisce
         else:
             print("ATTENZIONE: SNS_TOPIC_ARN non configurato, nessuna notifica inviata")
         

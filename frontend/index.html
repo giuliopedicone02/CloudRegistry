@@ -90,7 +90,6 @@
             font-weight: 600;
         }
 
-        /* Login schermata migliorata */
         .login-header {
             text-align: center;
             margin-bottom: 2.5rem;
@@ -938,7 +937,7 @@
 
                 showToast("Account verificato!");
 
-                // ⭐ NUOVA LOGICA: Iscrivere lo studente a SNS
+                // Iscrivere lo studente a SNS
                 try {
                     const res = await fetch(apiBaseUrl + "/voto", {
                         method: 'POST',
@@ -1408,7 +1407,7 @@
             }
         }
 
-        // --- SESSION CHECK (Evita logout su F5) ---
+        // --- SESSION CHECK ---
         (function checkSession() {
             const cognitoUser = userPool.getCurrentUser();
             if (cognitoUser != null) {
