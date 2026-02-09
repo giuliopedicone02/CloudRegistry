@@ -249,12 +249,28 @@ resource "aws_s3_bucket_policy" "frontend_public_read" {
 
 # --- 8. UPLOAD DEI FILE ---
 
-resource "aws_s3_object" "index" {
-  bucket       = aws_s3_bucket.frontend.id
-  key          = "index.html"
-  source       = "frontend/index.html"
-  content_type = "text/html"
-  etag         = filemd5("frontend/index.html")
+# --- NUOVO BLOCCO DINAMICO PER TUTTI I FILE (HTML, CSS, JS) ---
+resource "aws_s3_object" "frontend_files" {
+  # 1. Trova tutti i file nella cartella frontend
+  for_each = fileset("${path.module}/frontend", "**/*")
+
+  bucket = aws_s3_bucket.frontend.id
+  key    = each.value
+  source = "${path.module}/frontend/${each.value}"
+  
+  # 2. Calcola l'hash per aggiornare solo i file modificati
+  etag   = filemd5("${path.module}/frontend/${each.value}")
+
+  # 3. Assegna il Content-Type corretto in base all'estensione
+  # (Se non lo fai, il browser non caricherà il CSS o il JS)
+  content_type = lookup({
+    "html" = "text/html",
+    "css"  = "text/css",
+    "js"   = "application/javascript",
+    "png"  = "image/png",
+    "jpg"  = "image/jpeg",
+    "ico"  = "image/x-icon"
+  }, split(".", each.value)[length(split(".", each.value)) - 1], "application/octet-stream")
 }
 
 resource "aws_s3_object" "config" {
