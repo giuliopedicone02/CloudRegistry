@@ -119,7 +119,36 @@ def gestisci_scrittura(event, headers):
         except Exception as e:
             return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
 
-    # --- AZIONE 3: ADD GRADE (MODIFICATA PER SNS) ---
+    # --- AZIONE 3: SUBSCRIBE STUDENT (NUOVA) ---
+    if action == 'subscribe_student':
+        student_email = body.get('email')
+        
+        if not student_email:
+            return {'statusCode': 400, 'headers': headers, 'body': json.dumps("Email mancante")}
+        
+        try:
+            if SNS_TOPIC_ARN:
+                filter_policy = {
+                    "target_email": [student_email]
+                }
+                
+                print(f"Iscrizione SNS per nuovo studente: {student_email}")
+                sns.subscribe(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Protocol='email',
+                    Endpoint=student_email,
+                    Attributes={
+                        'FilterPolicy': json.dumps(filter_policy)
+                    }
+                )
+                return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Iscrizione richiesta. Controlla la tua email per confermare.'})}
+            else:
+                return {'statusCode': 500, 'headers': headers, 'body': json.dumps("SNS_TOPIC_ARN non configurato")}
+        except Exception as e:
+            print(f"Errore subscribe SNS: {e}")
+            return {'statusCode': 500, 'headers': headers, 'body': json.dumps(str(e))}
+
+    # --- AZIONE 4: ADD GRADE ---
     if action == 'add_grade':
         student_email = body.get('student_email')
         materia = body.get('materia')
@@ -139,30 +168,12 @@ def gestisci_scrittura(event, headers):
         }
         table.put_item(Item=item)
 
-        # --- LOGICA SNS CON FILTER POLICY ---
+        # --- INVIO NOTIFICA SNS ---
         try:
             subject = f"Nuovo Voto in {materia}"
             messaggio = f"Ciao, hai ricevuto un nuovo voto: {voto_raw} in {materia}.\nDocente: {teacher_name}"
             
             if SNS_TOPIC_ARN:
-                # 1. Iscriviamo lo studente (se non è già iscritto)
-                # Applichiamo una FILTER POLICY: Questo studente riceverà messaggi 
-                # SOLO se il messaggio contiene l'attributo 'target_email' uguale alla sua email.
-                filter_policy = {
-                    "target_email": [student_email]
-                }
-                
-                print(f"Iscrizione/Verifica SNS per: {student_email}")
-                sns.subscribe(
-                    TopicArn=SNS_TOPIC_ARN,
-                    Protocol='email',
-                    Endpoint=student_email,
-                    Attributes={
-                        'FilterPolicy': json.dumps(filter_policy)
-                    }
-                )
-
-                # 2. Pubblichiamo il messaggio con l'attributo specifico
                 print(f"Invio notifica SNS a: {student_email}")
                 sns.publish(
                     TopicArn=SNS_TOPIC_ARN,
@@ -180,7 +191,6 @@ def gestisci_scrittura(event, headers):
 
         except Exception as e:
             print(f"Errore invio SNS: {e}")
-            # Non blocchiamo il ritorno 200 se il DB ha scritto, ma logghiamo l'errore
             
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'message': 'Voto inserito e notifica inviata!'})}
 
