@@ -102,3 +102,40 @@ Una pipeline automatizzata gestisce il deployment continuo:
 
 ---
 
+### 🖼️ Screenshot dell’Applicazione Web
+
+Di seguito sono riportati alcuni screenshot che illustrano il funzionamento dell’interfaccia web di **CloudRegistry** e le principali funzionalità accessibili agli utenti autenticati.
+
+### Pagina di Login
+
+La schermata iniziale consente agli utenti di autenticarsi tramite Amazon Cognito, con gestione dei ruoli Docente e Studente.
+
+![Pagina di Login](images/login.png)
+
+![Pagina di Registrazione](images/registrazione.png)
+
+
+
+### Dashboard Docente
+
+La dashboard del docente permette la visualizzazione dell’elenco studenti, l’inserimento dei voti e la gestione delle note disciplinari.
+
+![Dashboard Docente](images/prof.png)
+
+### Inserimento di un Voto
+
+Interfaccia dedicata all’inserimento di nuovi voti da parte del docente, con aggiornamento automatico delle medie e invio di notifiche email.
+
+![Inserimento Voto](images/votodocente.png)
+
+### Inserimento di una Nota
+
+Interfaccia dedicata all’inserimento di nuove note da parte del docente, con invio di notifiche email.
+
+![Inserimento Nota](images/notedocente.png)
+
+### Visualizzazione Studente
+
+Lo studente può consultare i propri voti, le medie per materia e le eventuali note disciplinari associate.
+
+![Dashboard Studente](images/studente.png)
