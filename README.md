@@ -37,6 +37,9 @@ L'architettura è progettata per garantire alta disponibilità, sicurezza e scal
 
 ### Servizi AWS Utilizzati
 
+![Architettura](images/Schema%20Architetturale.jpg)
+
+
 | Servizio | Ruolo nell'Architettura |
 | --- | --- |
 | **Amazon S3** | Ospita il **frontend** statico (HTML/JS/CSS) con hosting web pubblico. |
